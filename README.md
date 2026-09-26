@@ -6,6 +6,8 @@ jizura-sync follows your Spotify playback, fetches time-synced lyrics from [LRCL
 
 [日本語](README.ja.md)
 
+> **Not a public service, and it cannot be one.** Spotify's and Apple's developer terms both forbid synchronizing their music with visuals, which is exactly what this app does. The lyrics come from a community database and are not licensed. This repository is source code for personal experiments; read the [disclaimer](#disclaimer) before running or sharing it.
+
 - Runs entirely in your browser. No server of ours: your Spotify tokens and settings stay in the page's local storage and go only to Spotify.
 - Bring your own Spotify app (a free Client ID). The steps are below and take about five minutes.
 - No build step. Static files plus the JIZURA engine as a git submodule.
@@ -42,7 +44,7 @@ Start playing something on Spotify on any device (phone, desktop, speaker). The 
 
 ### Other people and other hosts
 
-- **Other accounts.** A new Spotify app is in *development mode*: besides you, up to 5 Spotify accounts can use it, and each must be added under the app's **User Management**. An account that is not on the list gets `403` on every call; the page tells you when that happens.
+- **Other accounts.** A new Spotify app is in *development mode*: up to 5 Spotify accounts can use it, and each must be added under the app's **User Management**. An account that is not on the list gets `403` on every call; the page tells you when that happens.
 - **Another port.** `PORT=8080 ./serve.sh`, then register `http://127.0.0.1:8080/` instead.
 - **Your own hosting** (GitHub Pages or any static host): serve `web/`, including the submodule, and register the page's exact `https://` URL as a Redirect URI. The URI is the page address without query or hash, and the setup screen shows it.
 
@@ -79,9 +81,14 @@ The bar at the bottom shows the cover art, the track, and play / pause, previous
 - There is no beat sync. JIZURA can snap cuts to beats detected from audio, but a web app cannot read Spotify's audio.
 - Fonts load from Google Fonts on demand.
 
-## Spotify terms
+## Disclaimer
 
-Using the Web API makes you a Spotify developer: your app is bound by the [Spotify Developer Terms](https://developer.spotify.com/terms) and [Developer Policy](https://developer.spotify.com/policy). Read them before you share a deployment with anyone, section III of the policy in particular. This project is an experiment for personal use and is not affiliated with Spotify, LRCLIB or JIZURA.
+This project is a personal experiment. It is not affiliated with, endorsed by, or supported by Spotify, Apple, LRCLIB or the JIZURA author. It is provided as is, without warranty (see [LICENSE](LICENSE)). Whoever runs it is responsible for how they use it.
+
+- **Spotify does not allow publishing an app like this.** Using the Web API makes you a Spotify developer, bound by the [Spotify Developer Terms](https://developer.spotify.com/terms) and [Developer Policy](https://developer.spotify.com/policy). Section III of the policy says: "Do not synchronize any sound recordings with any visual media, including any advertising, film, television program, slideshow, video, or similar content." Lyric motion timed to the playing track is that kind of synchronization. Whoever runs a copy creates their own Spotify app for it; the policy requires separate credentials for each app, so do not reuse another project's Client ID. That app can be used by at most 5 Spotify accounts in development mode, each registered on it, and those accounts share its Client ID.
+- **Apple Music does not allow it either,** which is why there is no Apple Music version. The Apple Developer Program License Agreement says of MusicKit: "MusicKit Content cannot be synchronized with any other content, unless otherwise permitted by Apple in the Documentation."
+- **The lyrics are not licensed.** Lyrics are copyrighted works of their writers and publishers. LRCLIB's lyrics are contributed by its users, and neither LRCLIB nor this project has cleared them with the rights holders. This project holds no rights to any lyrics; it fetches them at runtime and does not store or redistribute them.
+- **Do not host it as a service for others.** Keep a deployment to yourself and the accounts registered on your own Spotify app.
 
 ## Updating JIZURA
 
@@ -92,6 +99,10 @@ tools/update-jizura-scripts.sh      # regenerates the <script> tags in web/index
 ```
 
 The page loads JIZURA's `src/*.js` directly, in filename order, and skips `src/12_ui.js`, which is JIZURA's editor UI.
+
+## Acknowledgements
+
+All of the lyric motion is [JIZURA](https://github.com/852wa/JIZURA) by [852wa](https://github.com/852wa). This project only feeds it the playing track's position and lyrics. Every layout, motion, decoration and random look on screen is JIZURA's work, and it is published under the MIT license, which made this experiment possible. Thank you. You can try the original, with its editor and video export, at <https://852wa.github.io/JIZURA/>.
 
 ## License
 

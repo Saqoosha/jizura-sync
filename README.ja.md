@@ -6,6 +6,8 @@ Spotify で再生中の曲を、リアルタイムに歌詞モーションにす
 
 [English](README.md)
 
+> **公開サービスではなく、公開サービスにはできない。** Spotify と Apple の開発者規約はどちらも、音楽と映像の同期を禁じている。このアプリがやっていることはまさにそれ。歌詞はコミュニティのデータベースから取っていて、許諾を得ていない。このリポジトリは個人の実験用のソースコード。動かしたり共有したりする前に、[免責事項](#免責事項)を読むこと。
+
 - ブラウザの中だけで動く。こちら側のサーバーは無い。Spotify のトークンと設定はページの localStorage に残り、送り先は Spotify だけ
 - Spotify app は各自で用意する（無料の Client ID）。手順は下に書いた。5 分ほどで済む
 - ビルド不要。静的ファイルと、git submodule の JIZURA だけ
@@ -42,7 +44,7 @@ Client ID は公開の識別子で、秘密ではない。認証は PKCE なの�
 
 ### 他の人、他の場所で使う
 
-- **他のアカウント**: 作ったばかりの Spotify app は開発モードで、自分以外に使えるのは 5 アカウントまで。使う人を app の **User Management** に登録する。登録していないアカウントは全 API が `403` になり、ページにもそう表示される
+- **他のアカウント**: 作ったばかりの Spotify app は開発モードで、使えるのは 5 アカウントまで。使う人を app の **User Management** に登録する。登録していないアカウントは全 API が `403` になり、ページにもそう表示される
 - **ポートを変える**: `PORT=8080 ./serve.sh` にして、`http://127.0.0.1:8080/` を登録する
 - **自分でホストする**（GitHub Pages など静的ホスティング）: `web/` を submodule ごと置き、そのページの `https://` の URL を Redirect URI に登録する。URI はクエリとハッシュを除いたページのアドレスで、設定画面に表示される
 
@@ -79,9 +81,14 @@ Client ID は公開の識別子で、秘密ではない。認証は PKCE なの�
 - 拍への同期は無い。JIZURA は音声から拍を検出してカットを合わせられるが、web app からは Spotify の音声を読めない
 - 書体は Google Fonts から必要な分だけ読み込む
 
-## Spotify の規約
+## 免責事項
 
-Web API を使うと、その人は Spotify の開発者になる。作った app には [Spotify Developer Terms](https://developer.spotify.com/terms) と [Developer Policy](https://developer.spotify.com/policy) が適用される。デプロイしたものを誰かと共有する前に読むこと（特に Policy の III 章）。このプロジェクトは個人用の実験で、Spotify・LRCLIB・JIZURA とは関係ない。
+このプロジェクトは個人の実験。Spotify・Apple・LRCLIB・JIZURA の作者とは関係がなく、承認も支援も受けていない。無保証で提供する（[LICENSE](LICENSE) を参照）。どう使うかは、動かす人の責任。
+
+- **Spotify は、このような app の公開を認めていない。** Web API を使うと、その人は Spotify の開発者になり、[Spotify Developer Terms](https://developer.spotify.com/terms) と [Developer Policy](https://developer.spotify.com/policy) に従うことになる。Policy の III 章には「Do not synchronize any sound recordings with any visual media, including any advertising, film, television program, slideshow, video, or similar content.」（音源を、広告・映画・テレビ番組・スライドショー・動画などの映像と同期させてはならない）とある。再生中の曲に合わせた歌詞モーションは、この同期にあたる。動かす人は、自分用の Spotify app を作る。規約は app ごとに別の資格情報を使うよう求めているので、ほかのプロジェクトの Client ID を流用してはいけない。開発モードのその app を使えるのは、app に登録した 5 アカウントまでで、その人たちは同じ Client ID を使う
+- **Apple Music も認めていない。** だから Apple Music 版は無い。Apple Developer Program License Agreement の MusicKit の条項に「MusicKit Content cannot be synchronized with any other content, unless otherwise permitted by Apple in the Documentation.」（Apple が文書で許可した場合を除き、MusicKit のコンテンツを他のコンテンツと同期させてはならない）とある
+- **歌詞は許諾を得ていない。** 歌詞は作詞者と音楽出版社の著作物。LRCLIB の歌詞は利用者が投稿したもので、LRCLIB もこのプロジェクトも権利者の許諾を得ていない。このプロジェクトは歌詞の権利を一切持たない。歌詞は実行時に取得するだけで、保存も再配布もしない
+- **他人向けのサービスとしてホストしないこと。** デプロイは、自分と、自分の Spotify app に登録したアカウントだけで使う
 
 ## JIZURA の更新
 
@@ -92,6 +99,10 @@ tools/update-jizura-scripts.sh      # web/index.html の <script> タグを作�
 ```
 
 ページは JIZURA の `src/*.js` をファイル名順に直接読み込む。JIZURA のエディタ UI である `src/12_ui.js` だけは読まない。
+
+## 謝辞
+
+歌詞モーションはすべて、[852wa](https://github.com/852wa) さんの [JIZURA](https://github.com/852wa/JIZURA) によるもの。このプロジェクトがしているのは、再生中の曲の位置と歌詞を JIZURA に渡すことだけ。画面に出るレイアウト・動き・装飾・ランダムな見た目は、どれも JIZURA の仕事。JIZURA が MIT ライセンスで公開されていたから、この実験ができた。感謝。エディタや動画書き出しを備えた本家は <https://852wa.github.io/JIZURA/> で試せる。
 
 ## ライセンス
 
