@@ -323,6 +323,8 @@ function toggleBar() {
     if ($('bar').hidden) return;
     barHidden = !barHidden;
     write(BAR_KEY, barHidden ? '1' : null);
+    $('toast').hidden = true;
+    lastError = null;
     document.body.classList.toggle('bar-hidden', barHidden);
     $('bar').inert = barHidden;
 }
