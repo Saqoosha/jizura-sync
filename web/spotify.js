@@ -136,6 +136,7 @@ export class SpotifyPlayer {
     constructor() {
         this._track = null;          // { trackId, title, artist, album, artUrl, durationMs }
         this._paused = true;
+        this._playing = false;       // Spotify's is_playing, also for items that are not tracks
         this._anchorPos = 0;         // position (ms) at …
         this._anchorAt = 0;          // … this performance.now()
         this._timer = null;
@@ -167,6 +168,9 @@ export class SpotifyPlayer {
         const pos = this._anchorPos + (this._paused ? 0 : performance.now() - this._anchorAt);
         return { ...this._track, positionMs: Math.max(0, Math.min(pos, this._track.durationMs)), paused: this._paused };
     }
+
+    /** Whether the account is playing anything, podcast episodes included. */
+    isPlaying() { return this._playing; }
 
     play() { this._command('PUT', '/me/player/play'); }
     pause() { this._command('PUT', '/me/player/pause'); }
@@ -211,11 +215,13 @@ export class SpotifyPlayer {
         this._failures = 0;
         if (res.status === 204) {                            // no active device
             this._track = null;
+            this._playing = false;
             this._onError(new SpotifyError('no-device', 'Nothing is playing on Spotify'));
             this._schedule(POLL_MS * 3);
             return;
         }
         const s = await res.json();
+        this._playing = !!s.is_playing;
         const item = s.item;
         if (item && item.type === 'track' && t0 >= this._seekAt) this._read(s, item, (t0 + t1) / 2);
         // Poll right after the current track should end so the next song starts without a lag.

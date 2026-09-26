@@ -109,7 +109,7 @@ async function loadTrack(state) {
     } catch (err) {
         if (token !== loadToken) return;
         console.warn('lyrics', err);
-        setStatus(`Lyrics lookup failed: ${err.message}`);
+        showError(`Lyrics lookup failed: ${err.message}`);
         return;
     }
     if (token !== loadToken) return;
@@ -141,6 +141,7 @@ function tick() {
     requestAnimationFrame(tick);
     const state = player?.getState();
     if (state && state.trackId && state.trackId !== trackId && state.durationMs > 0) loadTrack(state);
+    if (state) lastError = null;
     updateBar(state);
     if (!plan || !state || state.trackId !== trackId) return;
     const t = Math.max(0, (state.positionMs + offsetMs) / 1000);
@@ -164,7 +165,7 @@ function startPlayer() {
             return;
         }
         if (err.kind === 'auth') { showGate(`${err.message}. Connect again.`); return; }
-        setStatus(err.message);
+        showError(err.message);
     });
     player.start();
 }
@@ -216,7 +217,20 @@ function write(key, value) {
 }
 
 function setStatus(text) { $('status').textContent = text; wake(); }
-function togglePlay() { if (player) (player.getState()?.paused ? player.play() : player.pause()); }
+function togglePlay() { if (player) (player.isPlaying() ? player.pause() : player.play()); }
+
+// Errors also reach a user who hid the bar: a toast outside it, once per distinct message
+// while nothing plays (a missing device reports every 3 s).
+let lastError = null, toastTimer = 0;
+function showError(text) {
+    setStatus(text);
+    if (!barHidden || $('bar').hidden || text === lastError) return;
+    lastError = text;
+    $('toast').textContent = text;
+    $('toast').hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4000);
+}
 
 function setOffset(ms) {
     offsetMs = ms;
@@ -292,7 +306,7 @@ function fmtTime(ms) {
 let seeking = false;         // the slider is being dragged: do not move it under the pointer
 function updateBar(state) {
     if ($('bar').hidden) return;
-    $('playPause').classList.toggle('play', !state || state.paused);
+    $('playPause').classList.toggle('play', !player?.isPlaying());
     if (!state) return;
     const elapsed = fmtTime(state.positionMs), total = fmtTime(state.durationMs);
     if ($('elapsed').textContent !== elapsed && !seeking) $('elapsed').textContent = elapsed;
@@ -336,7 +350,7 @@ for (const ev of ['pointerup', 'pointercancel', 'blur']) $('seek').addEventListe
 // does not flash the bar off and on.
 let clickTimer = 0;
 window.addEventListener('click', (e) => {
-    if (e.target.closest('#bar, #gate, #help')) return;
+    if (e.target.closest('#bar, #gate, #help, #toast')) return;
     clearTimeout(clickTimer);
     if (e.detail > 1) return;
     clickTimer = setTimeout(toggleBar, 250);
@@ -363,6 +377,7 @@ class MockPlayer {
     play() { if (this.paused) { this.t0 = performance.now(); this.paused = false; } }
     pause() { if (!this.paused) { this.base = this.getState().positionMs; this.paused = true; } }
     seek(ms) { this.base = ms; this.t0 = performance.now(); }
+    isPlaying() { return !this.paused; }
     previous() { this.seek(0); }
     next() {}
     stop() {}

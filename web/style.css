@@ -152,6 +152,19 @@ body.bar-hidden #bar { opacity: 0; transform: translateY(12px); pointer-events: 
   }
 }
 
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(18, 18, 18, 0.85);
+  font-size: 13px;
+  transform: translateX(-50%);
+}
+
 #help {
   position: fixed;
   inset: 0;
