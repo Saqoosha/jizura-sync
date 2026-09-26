@@ -21,5 +21,5 @@ Usage and architecture are in README.md. This file holds what the code does not 
 - `window.jizuraSync.plan` / `.song` in devtools expose the current plan and lyric source.
 - `node --input-type=module --check < web/app.js` (same for `spotify.js`, `lyrics.js`) before loading the page. A syntax error blanks the whole page with no UI at all — an apostrophe inside a single-quoted string on the Client ID gate path once did, and `?mock` never reaches that path, so mock testing alone missed it.
 - To test error handling in `?mock`, fail the network before the page loads: devtools `navigate_page` with an `initScript` that wraps `window.fetch` to reject `lrclib` URLs.
-- `serve.sh` (`python3 -m http.server`) sends no cache headers, so Chrome may keep running an old `app.js` after an edit. Reload with cache disabled (Cmd+Shift+R) before concluding a change did not work.
+- `serve.sh` sends `Cache-Control: no-store`. Plain `python3 -m http.server` sends no cache headers, and Chrome then kept running an old `app.js` after edits; if you serve `web/` another way, hard-reload (Cmd+Shift+R) before concluding a change did not work.
 - The fullscreen button did not respond to a real click in the Chrome driven by the devtools MCP, but did via CDP and in the user's own Chrome. Confirm fullscreen in a normal browser.
