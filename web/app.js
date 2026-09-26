@@ -179,6 +179,7 @@ function showGate(text) {
     $('connect').hidden = !configured;
     $('changeClient').hidden = !configured;
     $('bar').hidden = true;
+    $('help').hidden = true;
     $('redirectUri').textContent = auth.redirectUri();
     $('clientId').value = auth.clientId() || '';
     $('gate').hidden = false;
@@ -214,7 +215,19 @@ function write(key, value) {
     try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* storage blocked */ }
 }
 
-function setStatus(text) { $('status').textContent = text; wake(); }
+// A status also shows a hidden bar for a few seconds, so errors are never silent.
+let peekTimer = 0;
+function setStatus(text) {
+    $('status').textContent = text;
+    wake();
+    document.body.classList.add('peek');
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(() => document.body.classList.remove('peek'), 3000);
+}
+function togglePlay() {
+    const st = player?.getState();
+    if (player) (!st || st.paused ? player.play() : player.pause());
+}
 
 function setOffset(ms) {
     offsetMs = ms;
@@ -239,7 +252,7 @@ function toggleFullscreen() {
 }
 
 window.addEventListener('keydown', (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || (e.target instanceof HTMLInputElement && e.target.type !== 'range')) return;
     switch (e.key) {
         case 'r': case 'R':
             if (!song) return;
@@ -252,7 +265,7 @@ window.addEventListener('keydown', (e) => {
         case ']': setOffset(offsetMs + OFFSET_STEP_MS); break;
         case ' ':
             e.preventDefault();
-            if (player) (player.getState()?.paused ? player.play() : player.pause());
+            togglePlay();
             break;
         case 'f': case 'F': toggleFullscreen(); break;
         case 'h': case 'H': toggleBar(); break;
@@ -309,9 +322,9 @@ function toggleBar() {
     document.body.classList.toggle('bar-hidden', barHidden);
 }
 
-$('prev').addEventListener('click', () => player?.previous?.());
-$('next').addEventListener('click', () => player?.next?.());
-$('playPause').addEventListener('click', () => { if (player) (player.getState()?.paused ? player.play() : player.pause()); });
+$('prev').addEventListener('click', () => player?.previous());
+$('next').addEventListener('click', () => player?.next());
+$('playPause').addEventListener('click', togglePlay);
 $('fullscreen').addEventListener('click', toggleFullscreen);
 $('helpButton').addEventListener('click', () => { $('help').hidden = !$('help').hidden; });
 $('help').addEventListener('click', (e) => { if (e.target === $('help')) $('help').hidden = true; });
@@ -323,8 +336,10 @@ $('seek').addEventListener('input', () => {
 $('seek').addEventListener('change', () => {
     seeking = false;
     const st = player?.getState();
-    if (st) player.seek?.(st.durationMs * $('seek').value / 1000);
+    if (st) player.seek(st.durationMs * $('seek').value / 1000);
 });
+// `change` does not fire when a drag ends where it started or is cancelled.
+for (const ev of ['pointerup', 'pointercancel', 'blur']) $('seek').addEventListener(ev, () => { seeking = false; });
 
 // A click anywhere outside the bar toggles it. Delayed so that a double click (fullscreen)
 // does not flash the bar off and on.

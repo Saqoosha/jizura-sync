@@ -139,6 +139,7 @@ export class SpotifyPlayer {
         this._anchorPos = 0;         // position (ms) at …
         this._anchorAt = 0;          // … this performance.now()
         this._timer = null;
+        this._seekAt = 0;            // polls sent before the last seek carry the old position
         this._failures = 0;
         this._running = false;
         this._onError = () => {};
@@ -174,7 +175,7 @@ export class SpotifyPlayer {
     seek(ms) {
         ms = Math.max(0, Math.round(ms));
         // Move the local clock now so the lyrics jump with the slider; the next poll confirms.
-        if (this._track) { this._anchorPos = ms; this._anchorAt = performance.now(); }
+        if (this._track) { this._anchorPos = ms; this._anchorAt = this._seekAt = performance.now(); }
         this._command('PUT', `/me/player/seek?position_ms=${ms}`);
     }
 
@@ -183,7 +184,8 @@ export class SpotifyPlayer {
             await api(method, path);
             this._schedule(250);          // pick up the new state quickly
         } catch (err) {
-            this._onError(err.kind === 'command' ? err : new SpotifyError('command', err.message));
+            this._schedule(0);            // resync whatever the command left behind locally
+            this._onError(err instanceof SpotifyError ? err : new SpotifyError('command', err.message));
         }
     }
 
@@ -216,7 +218,7 @@ export class SpotifyPlayer {
         }
         const s = await res.json();
         const item = s.item;
-        if (item && item.type === 'track') this._read(s, item, (t0 + t1) / 2);
+        if (item && item.type === 'track' && t0 >= this._seekAt) this._read(s, item, (t0 + t1) / 2);
         // Poll right after the current track should end so the next song starts without a lag.
         let next = POLL_MS;
         const st = this.getState();

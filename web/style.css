@@ -111,7 +111,7 @@ html, body {
   -webkit-backdrop-filter: blur(16px);
   transition: opacity 0.3s, transform 0.3s;
 }
-body.bar-hidden #bar { opacity: 0; transform: translateY(12px); pointer-events: none; }
+body.bar-hidden:not(.peek) #bar { opacity: 0; transform: translateY(12px); pointer-events: none; }
 
 #art { grid-area: art; width: 64px; height: 64px; border-radius: 6px; object-fit: cover; }
 #meta { grid-area: meta; min-width: 0; }
