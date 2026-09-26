@@ -134,7 +134,7 @@ const RESYNC_MS = 120;
  */
 export class SpotifyPlayer {
     constructor() {
-        this._track = null;          // { trackId, title, artist, album, durationMs }
+        this._track = null;          // { trackId, title, artist, album, artUrl, durationMs }
         this._paused = true;
         this._anchorPos = 0;         // position (ms) at …
         this._anchorAt = 0;          // … this performance.now()
@@ -160,7 +160,7 @@ export class SpotifyPlayer {
         document.removeEventListener('visibilitychange', this._onVisible);
     }
 
-    /** @returns {{trackId, title, artist, album, durationMs, positionMs, paused} | null} */
+    /** @returns {{trackId, title, artist, album, artUrl, durationMs, positionMs, paused} | null} */
     getState() {
         if (!this._track) return null;
         const pos = this._anchorPos + (this._paused ? 0 : performance.now() - this._anchorAt);
@@ -169,6 +169,14 @@ export class SpotifyPlayer {
 
     play() { this._command('PUT', '/me/player/play'); }
     pause() { this._command('PUT', '/me/player/pause'); }
+    next() { this._command('POST', '/me/player/next'); }
+    previous() { this._command('POST', '/me/player/previous'); }
+    seek(ms) {
+        ms = Math.max(0, Math.round(ms));
+        // Move the local clock now so the lyrics jump with the slider; the next poll confirms.
+        if (this._track) { this._anchorPos = ms; this._anchorAt = performance.now(); }
+        this._command('PUT', `/me/player/seek?position_ms=${ms}`);
+    }
 
     async _command(method, path) {
         try {
@@ -226,6 +234,9 @@ export class SpotifyPlayer {
                 title: item.name,
                 artist: item.artists.map((a) => a.name).join(', '),
                 album: item.album?.name || null,
+                // Images are sorted largest first; the smallest one at least 128 px is plenty for a thumbnail.
+                artUrl: (item.album?.images || []).filter((i) => !i.width || i.width >= 128).at(-1)?.url
+                    || item.album?.images?.[0]?.url || null,
                 durationMs: item.duration_ms,
             };
         }

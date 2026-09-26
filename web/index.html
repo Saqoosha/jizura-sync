@@ -34,12 +34,45 @@
   <button id="changeClient" type="button" class="secondary" hidden>Change Client ID</button>
 </div>
 
-<button id="disconnect" type="button" class="secondary corner" hidden>Disconnect</button>
+<div id="bar" hidden>
+  <img id="art" alt="" width="64" height="64" hidden>
+  <div id="meta">
+    <p id="track"></p>
+    <p id="status"></p>
+  </div>
+  <div id="transport">
+    <div class="buttons">
+      <button id="prev" type="button" class="icon" aria-label="Previous track"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button id="playPause" type="button" class="icon play" aria-label="Play/pause"><svg viewBox="0 0 24 24"><path class="i-pause" d="M7 5h4v14H7zM13 5h4v14h-4z"/><path class="i-play" d="M8 5v14l11-7z"/></svg></button>
+      <button id="next" type="button" class="icon" aria-label="Next track"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    </div>
+    <div class="progress">
+      <span id="elapsed">0:00</span>
+      <input id="seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Seek">
+      <span id="total">0:00</span>
+    </div>
+  </div>
+  <div id="tools">
+    <button id="helpButton" type="button" class="icon" aria-label="Keyboard shortcuts"><svg viewBox="0 0 24 24"><path d="M11 17h2v2h-2zM12 5a4 4 0 0 0-4 4h2a2 2 0 1 1 3.2 1.6c-1.2.9-2.2 1.7-2.2 3.4v.5h2V14c0-.8.5-1.3 1.4-2A4 4 0 0 0 12 5z"/></svg></button>
+    <button id="fullscreen" type="button" class="icon" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z"/></svg></button>
+  </div>
+</div>
 
-<div id="hud">
-  <p id="track"></p>
-  <p id="status"></p>
-  <p id="keys">R restyle · K frame stepping · U unify · [ ] lyrics −/+50 ms · Space play/pause · F fullscreen</p>
+<div id="help" hidden>
+  <div class="panel" role="dialog" aria-label="Keyboard shortcuts">
+    <h2>Controls</h2>
+    <dl>
+      <dt>Click</dt><dd>Hide / show the bar (also <kbd>H</kbd>)</dd>
+      <dt><kbd>R</kbd></dt><dd>New random look: style, mood, colours, fonts and the parts used</dd>
+      <dt><kbd>U</kbd></dt><dd>Same style within each song section (on) or every line styled on its own (off)</dd>
+      <dt><kbd>K</kbd></dt><dd>Motion: as the look picks → smooth → choppy 12 fps → choppier 8 fps, like hand-drawn animation</dd>
+      <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>Lyrics 50 ms later / earlier, when they run ahead of or behind the song</dd>
+      <dt><kbd>Space</kbd></dt><dd>Play / pause</dd>
+      <dt><kbd>F</kbd></dt><dd>Fullscreen (also double-click)</dd>
+      <dt><kbd>?</kbd></dt><dd>This help</dd>
+    </dl>
+    <button id="disconnect" type="button" class="link" hidden>Disconnect Spotify</button>
+  </div>
 </div>
 
 <!-- JIZURA engine (git submodule): classic scripts that define the global `J` -->

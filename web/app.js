@@ -32,6 +32,8 @@ const KOMA_CYCLE = [null, 0, 12, 8];
 // accent ("kime") lines. JIZURA defaults it off and its random look never sets it; without it
 // every cut is an independent draw, which reads as random. On by default here.
 const UNIFY_KEY = 'jizura-sync.unify';
+// The now-playing bar is shown until the user clicks it away; the choice sticks.
+const BAR_KEY = 'jizura-sync.barHidden';
 
 let player = null;
 let trackId = null;          // track the current plan belongs to
@@ -44,6 +46,7 @@ let slow = false;
 let offsetMs = Number(read(OFFSET_KEY)) || 0;
 let komaPref = read(KOMA_KEY) === null ? null : Number(read(KOMA_KEY));
 let unifyPref = read(UNIFY_KEY) !== '0';
+let barHidden = read(BAR_KEY) === '1';
 
 // ---------------------------------------------------------------- project / plan
 
@@ -87,13 +90,15 @@ function buildPlan() {
     plan = J.plan(project, song.durationMs ? { duration: song.durationMs / 1000 } : null);
     sizeCanvas();
     J.ensureFonts(song.lyrics + song.title + song.artist + HUD_CHARS, J.fontsOfPlan(plan)).catch(() => {});
-    setStatus(`${J.STYLES[project.style]?.name ?? project.style} · ${J.MOODS[project.mood]?.name ?? ''} · ${plan.cuts.length} cuts${project.unify ? ' · unify' : ''}`);
+    setStatus(`${J.STYLES[project.style]?.name ?? project.style} · ${J.MOODS[project.mood]?.name ?? ''} · ${plan.cuts.length} cuts${project.unify ? ' · same style per section' : ''}`);
 }
 
 async function loadTrack(state) {
     const token = ++loadToken;
     trackId = state.trackId;
     $('track').textContent = `${state.title} — ${state.artist}`;
+    $('art').hidden = !state.artUrl;
+    if (state.artUrl) $('art').src = state.artUrl;
     look = rollLook(hashString(state.trackId));
     song = { title: state.title, artist: state.artist, durationMs: state.durationMs, lyrics: NO_LYRICS };
     buildPlan();
@@ -136,6 +141,7 @@ function tick() {
     requestAnimationFrame(tick);
     const state = player?.getState();
     if (state && state.trackId && state.trackId !== trackId && state.durationMs > 0) loadTrack(state);
+    updateBar(state);
     if (!plan || !state || state.trackId !== trackId) return;
     const t = Math.max(0, (state.positionMs + offsetMs) / 1000);
     const t0 = performance.now();
@@ -150,6 +156,7 @@ function tick() {
 function startPlayer() {
     $('gate').hidden = true;
     $('disconnect').hidden = false;
+    showBar();
     player = new SpotifyPlayer();
     player.onError((err) => {
         if (err.kind === 'not-registered') {
@@ -171,7 +178,7 @@ function showGate(text) {
     $('setup').hidden = configured;
     $('connect').hidden = !configured;
     $('changeClient').hidden = !configured;
-    $('disconnect').hidden = !auth.isConnected();
+    $('bar').hidden = true;
     $('redirectUri').textContent = auth.redirectUri();
     $('clientId').value = auth.clientId() || '';
     $('gate').hidden = false;
@@ -194,6 +201,7 @@ $('changeClient').addEventListener('click', () => {
 // account also needs a sign-out at accounts.spotify.com.
 $('disconnect').addEventListener('click', () => {
     auth.disconnect();
+    $('help').hidden = true;
     trackId = null; song = null; plan = null;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     showGate('Disconnected. Access can also be removed at spotify.com/account/apps.');
@@ -211,19 +219,19 @@ function setStatus(text) { $('status').textContent = text; wake(); }
 function setOffset(ms) {
     offsetMs = ms;
     write(OFFSET_KEY, String(ms));
-    setStatus(`Lyrics offset ${ms > 0 ? '+' : ''}${ms} ms`);
+    setStatus(ms === 0 ? 'Lyrics timing reset' : `Lyrics ${Math.abs(ms)} ms ${ms > 0 ? 'earlier' : 'later'}`);
 }
 function toggleUnify() {
     unifyPref = !unifyPref;
     write(UNIFY_KEY, unifyPref ? '1' : '0');
     if (song) buildPlan();
-    setStatus(`Unify ${unifyPref ? 'on' : 'off'}`);
+    setStatus(unifyPref ? 'Same style within each song section' : 'Every line styled independently');
 }
 function cycleKoma() {
     komaPref = KOMA_CYCLE[(KOMA_CYCLE.indexOf(komaPref) + 1) % KOMA_CYCLE.length];
     write(KOMA_KEY, komaPref === null ? null : String(komaPref));
     if (song) buildPlan();
-    setStatus(`Frame stepping: ${komaPref === null ? 'per look' : komaPref === 0 ? 'every frame' : `${komaPref} drawings/s`}`);
+    setStatus(`Motion: ${komaPref === null ? 'as the look picks' : komaPref === 0 ? 'smooth' : `choppy, ${komaPref} fps`}`);
 }
 function toggleFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -247,11 +255,14 @@ window.addEventListener('keydown', (e) => {
             if (player) (player.getState()?.paused ? player.play() : player.pause());
             break;
         case 'f': case 'F': toggleFullscreen(); break;
+        case 'h': case 'H': toggleBar(); break;
+        case '?': $('help').hidden = !$('help').hidden; break;
+        case 'Escape': $('help').hidden = true; break;
         default: return;
     }
     wake();
 });
-canvas.addEventListener('dblclick', toggleFullscreen);
+window.addEventListener('dblclick', (e) => { if (!e.target.closest('#bar, #gate, #help')) toggleFullscreen(); });
 
 let resizeTimer = 0;
 window.addEventListener('resize', () => {
@@ -268,6 +279,62 @@ function wake() {
     idleTimer = setTimeout(() => document.body.classList.add('idle'), 3000);
 }
 window.addEventListener('pointermove', wake);
+
+// ---------------------------------------------------------------- now-playing bar
+
+function fmtTime(ms) {
+    const s = Math.floor(Math.max(0, ms) / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+let seeking = false;         // the slider is being dragged: do not move it under the pointer
+function updateBar(state) {
+    if ($('bar').hidden) return;
+    $('playPause').classList.toggle('play', !state || state.paused);
+    if (!state) return;
+    const elapsed = fmtTime(state.positionMs), total = fmtTime(state.durationMs);
+    if ($('elapsed').textContent !== elapsed && !seeking) $('elapsed').textContent = elapsed;
+    if ($('total').textContent !== total) $('total').textContent = total;
+    if (!seeking) $('seek').value = String(Math.round(1000 * state.positionMs / Math.max(1, state.durationMs)));
+}
+
+function showBar() {
+    $('bar').hidden = false;
+    document.body.classList.toggle('bar-hidden', barHidden);
+}
+function toggleBar() {
+    if ($('bar').hidden) return;
+    barHidden = !barHidden;
+    write(BAR_KEY, barHidden ? '1' : null);
+    document.body.classList.toggle('bar-hidden', barHidden);
+}
+
+$('prev').addEventListener('click', () => player?.previous?.());
+$('next').addEventListener('click', () => player?.next?.());
+$('playPause').addEventListener('click', () => { if (player) (player.getState()?.paused ? player.play() : player.pause()); });
+$('fullscreen').addEventListener('click', toggleFullscreen);
+$('helpButton').addEventListener('click', () => { $('help').hidden = !$('help').hidden; });
+$('help').addEventListener('click', (e) => { if (e.target === $('help')) $('help').hidden = true; });
+$('seek').addEventListener('input', () => {
+    seeking = true;
+    const st = player?.getState();
+    if (st) $('elapsed').textContent = fmtTime(st.durationMs * $('seek').value / 1000);
+});
+$('seek').addEventListener('change', () => {
+    seeking = false;
+    const st = player?.getState();
+    if (st) player.seek?.(st.durationMs * $('seek').value / 1000);
+});
+
+// A click anywhere outside the bar toggles it. Delayed so that a double click (fullscreen)
+// does not flash the bar off and on.
+let clickTimer = 0;
+window.addEventListener('click', (e) => {
+    if (e.target.closest('#bar, #gate, #help')) return;
+    clearTimeout(clickTimer);
+    if (e.detail > 1) return;
+    clickTimer = setTimeout(toggleBar, 250);
+});
 
 // ---------------------------------------------------------------- boot
 
@@ -289,6 +356,9 @@ class MockPlayer {
     }
     play() { if (this.paused) { this.t0 = performance.now(); this.paused = false; } }
     pause() { if (!this.paused) { this.base = this.getState().positionMs; this.paused = true; } }
+    seek(ms) { this.base = ms; this.t0 = performance.now(); }
+    previous() { this.seek(0); }
+    next() {}
     stop() {}
 }
 
@@ -296,7 +366,7 @@ async function boot() {
     requestAnimationFrame(tick);
     wake();
     const q = new URLSearchParams(location.search);
-    if (q.has('mock')) { player = new MockPlayer(q.get('mock'), Number(q.get('t')) || 0); return; }
+    if (q.has('mock')) { player = new MockPlayer(q.get('mock'), Number(q.get('t')) || 0); showBar(); return; }
     try { await auth.handleRedirect(); } catch (err) { showGate(err.message); return; }
     if (!auth.clientId()) { showGate('Paste the Client ID of your own Spotify app to start.'); return; }
     if (!auth.isConnected()) { showGate("Lyric motion for what's playing on your Spotify"); return; }
