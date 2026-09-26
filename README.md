@@ -44,7 +44,7 @@ Start playing something on Spotify on any device (phone, desktop, speaker). The 
 
 ### Other people and other hosts
 
-- **Other accounts.** A new Spotify app is in *development mode*: besides you, up to 5 Spotify accounts can use it, and each must be added under the app's **User Management**. An account that is not on the list gets `403` on every call; the page tells you when that happens.
+- **Other accounts.** A new Spotify app is in *development mode*: up to 5 Spotify accounts can use it, and each must be added under the app's **User Management**. An account that is not on the list gets `403` on every call; the page tells you when that happens.
 - **Another port.** `PORT=8080 ./serve.sh`, then register `http://127.0.0.1:8080/` instead.
 - **Your own hosting** (GitHub Pages or any static host): serve `web/`, including the submodule, and register the page's exact `https://` URL as a Redirect URI. The URI is the page address without query or hash, and the setup screen shows it.
 
