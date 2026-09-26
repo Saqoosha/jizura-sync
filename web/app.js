@@ -299,7 +299,7 @@ async function boot() {
     if (q.has('mock')) { player = new MockPlayer(q.get('mock'), Number(q.get('t')) || 0); return; }
     try { await auth.handleRedirect(); } catch (err) { showGate(err.message); return; }
     if (!auth.clientId()) { showGate('Paste the Client ID of your own Spotify app to start.'); return; }
-    if (!auth.isConnected()) { showGate('Lyric motion for what's playing on your Spotify'); return; }
+    if (!auth.isConnected()) { showGate("Lyric motion for what's playing on your Spotify"); return; }
     startPlayer();
 }
 
