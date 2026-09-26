@@ -303,12 +303,14 @@ function updateBar(state) {
 function showBar() {
     $('bar').hidden = false;
     document.body.classList.toggle('bar-hidden', barHidden);
+    $('bar').inert = barHidden;             // hidden controls must not take focus or keys
 }
 function toggleBar() {
     if ($('bar').hidden) return;
     barHidden = !barHidden;
     write(BAR_KEY, barHidden ? '1' : null);
     document.body.classList.toggle('bar-hidden', barHidden);
+    $('bar').inert = barHidden;
 }
 
 $('prev').addEventListener('click', () => player?.previous());
