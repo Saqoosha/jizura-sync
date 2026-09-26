@@ -92,30 +92,117 @@ html, body {
 .hint { margin: 0; color: var(--dim); font-size: 13px; }
 .hint a { color: var(--fg); }
 
-/* Disconnect: always reachable while playing, fades with the rest of the overlay */
-.corner {
-  position: fixed;
-  top: 12px;
-  right: 16px;
-  margin: 0;
-  padding: 6px 14px;
-  font-size: 12px;
-  transition: opacity 0.6s;
-}
-body.idle .corner { opacity: 0; pointer-events: none; }
-
-/* overlay text: fades after 3 s without pointer movement (app.js toggles .idle) */
-#hud {
+/* now-playing bar: shown until a click outside it hides it (app.js toggles .bar-hidden) */
+#bar {
   position: fixed;
   left: 16px;
-  bottom: 12px;
   right: 16px;
-  pointer-events: none;
-  transition: opacity 0.6s;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  bottom: 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  grid-template-areas: "art meta transport tools";
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 6px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(18, 18, 18, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: opacity 0.3s, transform 0.3s;
 }
-#hud p { margin: 0; }
-#track { font-weight: 700; }
-#status, #keys { color: var(--dim); font-size: 12px; }
-body.idle #hud { opacity: 0; }
+body.bar-hidden #bar { opacity: 0; transform: translateY(12px); pointer-events: none; }
+
+#art { grid-area: art; width: 64px; height: 64px; border-radius: 6px; object-fit: cover; }
+#meta { grid-area: meta; min-width: 0; }
+#meta p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#track { font-weight: 700; font-size: 15px; }
+#status { color: var(--dim); font-size: 12px; }
+
+#transport { grid-area: transport; display: grid; gap: 4px; justify-items: center; }
+.buttons { display: flex; gap: 8px; align-items: center; }
+.progress { display: flex; gap: 10px; align-items: center; width: 100%; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+#seek { flex: 1; accent-color: var(--fg); cursor: pointer; }
+
+#tools { grid-area: tools; display: flex; gap: 8px; align-items: center; }
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+.icon:hover { background: rgba(255, 255, 255, 0.1); }
+.icon svg { width: 20px; height: 20px; fill: currentColor; }
+#playPause { width: 40px; height: 40px; background: var(--fg); color: #000; }
+#playPause:hover { background: #fff; }
+#playPause .i-play, #playPause.play .i-pause { display: none; }
+#playPause.play .i-play { display: inline; }
+
+@media (max-width: 720px) {
+  #bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "art meta tools" "transport transport transport";
+  }
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(18, 18, 18, 0.85);
+  font-size: 13px;
+  transform: translateX(-50%);
+}
+
+#help {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+}
+#help .panel {
+  width: min(520px, 100%);
+  padding: 20px 24px;
+  border-radius: 14px;
+  background: rgba(18, 18, 18, 0.92);
+}
+#help h2 { margin: 0 0 12px; font-size: 16px; }
+#help dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; margin: 0; }
+#help dt { white-space: nowrap; }
+#help dd { margin: 0; color: var(--dim); }
+#help .link {
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+#help .link:hover { color: var(--fg); }
+kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border: 1px solid rgba(244, 244, 244, 0.3);
+  border-radius: 4px;
+  font: 12px ui-monospace, Menlo, monospace;
+  text-align: center;
+}
+
 body.idle { cursor: none; }

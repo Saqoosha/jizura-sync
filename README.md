@@ -48,16 +48,20 @@ Start playing something on Spotify on any device (phone, desktop, speaker). The 
 
 ## Controls
 
+The bar at the bottom shows the cover art, the track, and play / pause, previous / next and seek on Spotify. Press `?` or the `?` button for the controls below.
+
 | Key | |
 |---|---|
-| `R` | New random look: style, mood, colours, fonts, which parts are used |
-| `U` | Unify on/off. On (default) keeps a small set of layouts and motions per song section and shows repeated lines the same way |
-| `K` | Frame stepping: per look → every frame → 12/s → 8/s. JIZURA animates "on twos" like hand-drawn animation by default |
-| `[` / `]` | Shift the lyrics −50 / +50 ms if they run early or late (remembered) |
+| Click, `H` | Hide / show the bar (remembered). Errors still appear briefly while it is hidden |
+| `R` | New random look: style, mood, colours, fonts and the parts used |
+| `U` | Same style within each song section (on, the default) or every line styled on its own (off) |
+| `K` | Motion: as the look picks → smooth → choppy 12 fps → choppier 8 fps, like hand-drawn animation |
+| `[` / `]` | Lyrics 50 ms later / earlier, when they run ahead of or behind the song (remembered) |
 | `Space` | Play / pause on Spotify |
 | `F`, double-click | Fullscreen |
+| `?`, `Esc` | Open / close the help |
 
-Mouse movement shows the overlay. **Disconnect** (top right) forgets the tokens. To revoke access completely, remove the app at [spotify.com/account/apps](https://www.spotify.com/account/apps/).
+**Disconnect Spotify** at the bottom of the help forgets the tokens. To revoke access completely, remove the app at [spotify.com/account/apps](https://www.spotify.com/account/apps/).
 
 ### Try it without Spotify
 

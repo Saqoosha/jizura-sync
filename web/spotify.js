@@ -134,11 +134,13 @@ const RESYNC_MS = 120;
  */
 export class SpotifyPlayer {
     constructor() {
-        this._track = null;          // { trackId, title, artist, album, durationMs }
+        this._track = null;          // { trackId, title, artist, album, artUrl, durationMs }
         this._paused = true;
+        this._playing = false;       // Spotify's is_playing, also for items that are not tracks
         this._anchorPos = 0;         // position (ms) at …
         this._anchorAt = 0;          // … this performance.now()
         this._timer = null;
+        this._seekAt = 0;            // polls sent before the last seek carry the old position
         this._failures = 0;
         this._running = false;
         this._onError = () => {};
@@ -160,22 +162,33 @@ export class SpotifyPlayer {
         document.removeEventListener('visibilitychange', this._onVisible);
     }
 
-    /** @returns {{trackId, title, artist, album, durationMs, positionMs, paused} | null} */
+    /** @returns {{trackId, title, artist, album, artUrl, durationMs, positionMs, paused} | null} */
     getState() {
         if (!this._track) return null;
         const pos = this._anchorPos + (this._paused ? 0 : performance.now() - this._anchorAt);
         return { ...this._track, positionMs: Math.max(0, Math.min(pos, this._track.durationMs)), paused: this._paused };
     }
 
+    /** Whether the account is playing anything, podcast episodes included. */
+    isPlaying() { return this._playing; }
+
     play() { this._command('PUT', '/me/player/play'); }
     pause() { this._command('PUT', '/me/player/pause'); }
+    next() { this._command('POST', '/me/player/next'); }
+    previous() { this._command('POST', '/me/player/previous'); }
+    seek(ms) {
+        ms = Math.max(0, Math.round(ms));
+        // Move the local clock now so the lyrics jump with the slider; the next poll confirms.
+        if (this._track) { this._anchorPos = ms; this._anchorAt = this._seekAt = performance.now(); }
+        this._command('PUT', `/me/player/seek?position_ms=${ms}`);
+    }
 
     async _command(method, path) {
         try {
             await api(method, path);
             this._schedule(250);          // pick up the new state quickly
         } catch (err) {
-            this._onError(err.kind === 'command' ? err : new SpotifyError('command', err.message));
+            this._onError(err instanceof SpotifyError ? err : new SpotifyError('command', err.message));
         }
     }
 
@@ -202,13 +215,15 @@ export class SpotifyPlayer {
         this._failures = 0;
         if (res.status === 204) {                            // no active device
             this._track = null;
+            this._playing = false;
             this._onError(new SpotifyError('no-device', 'Nothing is playing on Spotify'));
             this._schedule(POLL_MS * 3);
             return;
         }
         const s = await res.json();
+        this._playing = !!s.is_playing;
         const item = s.item;
-        if (item && item.type === 'track') this._read(s, item, (t0 + t1) / 2);
+        if (item && item.type === 'track' && t0 >= this._seekAt) this._read(s, item, (t0 + t1) / 2);
         // Poll right after the current track should end so the next song starts without a lag.
         let next = POLL_MS;
         const st = this.getState();
@@ -226,6 +241,9 @@ export class SpotifyPlayer {
                 title: item.name,
                 artist: item.artists.map((a) => a.name).join(', '),
                 album: item.album?.name || null,
+                // Images are sorted largest first; the smallest one at least 128 px is plenty for a thumbnail.
+                artUrl: (item.album?.images || []).filter((i) => !i.width || i.width >= 128).at(-1)?.url
+                    || item.album?.images?.[0]?.url || null,
                 durationMs: item.duration_ms,
             };
         }
