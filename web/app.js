@@ -215,19 +215,8 @@ function write(key, value) {
     try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* storage blocked */ }
 }
 
-// A status also shows a hidden bar for a few seconds, so errors are never silent.
-let peekTimer = 0;
-function setStatus(text) {
-    $('status').textContent = text;
-    wake();
-    document.body.classList.add('peek');
-    clearTimeout(peekTimer);
-    peekTimer = setTimeout(() => document.body.classList.remove('peek'), 3000);
-}
-function togglePlay() {
-    const st = player?.getState();
-    if (player) (!st || st.paused ? player.play() : player.pause());
-}
+function setStatus(text) { $('status').textContent = text; wake(); }
+function togglePlay() { if (player) (player.getState()?.paused ? player.play() : player.pause()); }
 
 function setOffset(ms) {
     offsetMs = ms;

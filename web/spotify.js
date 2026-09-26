@@ -184,7 +184,6 @@ export class SpotifyPlayer {
             await api(method, path);
             this._schedule(250);          // pick up the new state quickly
         } catch (err) {
-            this._schedule(0);            // resync whatever the command left behind locally
             this._onError(err instanceof SpotifyError ? err : new SpotifyError('command', err.message));
         }
     }
