@@ -1,0 +1,4 @@
+[submodule "web/vendor/JIZURA"]
+	path = web/vendor/JIZURA
+	url = https://github.com/852wa/JIZURA.git
+	shallow = true

@@ -1,0 +1,94 @@
+# jizura-sync
+
+Real-time lyric motion for what's playing on your Spotify — on any device.
+
+jizura-sync follows your Spotify playback, fetches time-synced lyrics from [LRCLIB](https://lrclib.net), and renders them with [JIZURA](https://github.com/852wa/JIZURA), a browser engine that assembles lyric videos (文字PV) from hundreds of small layout, motion and decoration parts. Every song gets its own look; press `R` for another one.
+
+[日本語](README.ja.md)
+
+- Runs entirely in your browser. No server of ours: your Spotify tokens and settings stay in the page's local storage and go only to Spotify.
+- Bring your own Spotify app (a free Client ID). The steps are below and take about five minutes.
+- No build step. Static files plus the JIZURA engine as a git submodule.
+
+## Setup
+
+You need a Spotify **Premium** account: Spotify requires it of the owner of a development-mode app.
+
+### 1. Get the code
+
+```bash
+git clone --recursive https://github.com/Saqoosha/jizura-sync.git
+cd jizura-sync
+./serve.sh            # http://127.0.0.1:5180/
+```
+
+Already cloned without `--recursive`? Run `git submodule update --init`.
+
+### 2. Create a Spotify app
+
+1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and choose **Create app**.
+2. Fill in any name and description.
+3. Under **Redirect URIs**, add exactly `http://127.0.0.1:5180/`, including the trailing slash. Spotify accepts the loopback IP but rejects `localhost`.
+4. Under **Which API/SDKs are you planning to use?**, check **Web API**, then save.
+5. Open the app's **Settings** and copy the **Client ID**.
+
+The Client ID is a public identifier, not a secret. The sign-in uses PKCE, so there is no client secret anywhere.
+
+### 3. Connect
+
+Open <http://127.0.0.1:5180/>, paste the Client ID, then **Connect Spotify**. The setup screen shows the Redirect URI the page expects, so you can check it against your app.
+
+Start playing something on Spotify on any device (phone, desktop, speaker). The lyrics follow it.
+
+### Other people and other hosts
+
+- **Other accounts.** A new Spotify app is in *development mode*: besides you, up to 5 Spotify accounts can use it, and each must be added under the app's **User Management**. An account that is not on the list gets `403` on every call; the page tells you when that happens.
+- **Another port.** `PORT=8080 ./serve.sh`, then register `http://127.0.0.1:8080/` instead.
+- **Your own hosting** (GitHub Pages or any static host): serve `web/`, including the submodule, and register the page's exact `https://` URL as a Redirect URI. The URI is the page address without query or hash, and the setup screen shows it.
+
+## Controls
+
+| Key | |
+|---|---|
+| `R` | New random look: style, mood, colours, fonts, which parts are used |
+| `U` | Unify on/off. On (default) keeps a small set of layouts and motions per song section and shows repeated lines the same way |
+| `K` | Frame stepping: per look → every frame → 12/s → 8/s. JIZURA animates "on twos" like hand-drawn animation by default |
+| `[` / `]` | Shift the lyrics −50 / +50 ms if they run early or late (remembered) |
+| `Space` | Play / pause on Spotify |
+| `F`, double-click | Fullscreen |
+
+Mouse movement shows the overlay. **Disconnect** (top right) forgets the tokens. To revoke access completely, remove the app at [spotify.com/account/apps](https://www.spotify.com/account/apps/).
+
+### Try it without Spotify
+
+`http://127.0.0.1:5180/?mock` plays a fixed song on a local clock. `?mock=Artist|Title|durationMs` picks another song, and `&t=30` starts 30 s in.
+
+## How it works
+
+- **Playback.** Spotify does not push player state to web apps, so the page polls `GET /me/player` once a second and extrapolates the position in between. Each reading is anchored at the midpoint of its request's round trip.
+- **Lyrics.** Lyrics come from LRCLIB's synced LRC files, matched by artist, title and duration. LRC is close to JIZURA's own lyric format, so the conversion only escapes JIZURA's markup characters and marks song sections. A section starts at a blank line, a long pause, or a repeated block such as a chorus. Sections shorter than 3 lines are merged and sections longer than 8 lines are split, because the unify mode picks its parts per section.
+- **Rendering.** JIZURA builds a plan for the whole song once (cuts, parts, effects), and its renderer is a pure function of time. Each animation frame draws the plan at the current playback position, so seeking and pausing need no extra state.
+
+## Limitations
+
+- Lyrics are only as good as LRCLIB's community data. Some tracks have none, or only unsynced text; those show the title card instead.
+- There is no beat sync. JIZURA can snap cuts to beats detected from audio, but a web app cannot read Spotify's audio.
+- Fonts load from Google Fonts on demand.
+
+## Spotify terms
+
+Using the Web API makes you a Spotify developer: your app is bound by the [Spotify Developer Terms](https://developer.spotify.com/terms) and [Developer Policy](https://developer.spotify.com/policy). Read them before you share a deployment with anyone, section III of the policy in particular. This project is an experiment for personal use and is not affiliated with Spotify, LRCLIB or JIZURA.
+
+## Updating JIZURA
+
+```bash
+git -C web/vendor/JIZURA fetch --depth 1 origin main
+git -C web/vendor/JIZURA checkout FETCH_HEAD
+tools/update-jizura-scripts.sh      # regenerates the <script> tags in web/index.html
+```
+
+The page loads JIZURA's `src/*.js` directly, in filename order, and skips `src/12_ui.js`, which is JIZURA's editor UI.
+
+## License
+
+MIT, see [LICENSE](LICENSE). JIZURA is © 852wa, MIT licensed, and included as a submodule: see `web/vendor/JIZURA/LICENSE` and its `THIRD_PARTY_NOTICES.md`. Lyrics are fetched at runtime from LRCLIB and are not part of this repository.

@@ -1,0 +1,121 @@
+:root {
+  --bg: #000;
+  --fg: #f4f4f4;
+  --dim: rgba(244, 244, 244, 0.55);
+  --accent: #1ed760;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 system-ui, -apple-system, "Hiragino Sans", sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* the design-space frame is letterboxed inside the window; app.js sets its size */
+#view {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg);
+}
+
+[hidden] { display: none !important; }
+
+#gate {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 16px;
+}
+.wordmark { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 0.08em; }
+.lede { margin: 0; font-size: 18px; color: var(--dim); }
+#connect, #setup button {
+  margin-top: 16px;
+  padding: 12px 28px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #000;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary {
+  margin-top: 4px;
+  padding: 10px 24px;
+  border: 1px solid var(--dim);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+#setup {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  width: min(440px, 100%);
+  margin-top: 12px;
+  user-select: text;
+}
+#setup label { font-weight: 700; }
+#setup input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--dim);
+  border-radius: 8px;
+  background: #111;
+  color: var(--fg);
+  font: 15px ui-monospace, Menlo, monospace;
+  text-align: center;
+}
+#setup code {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #1a1a1a;
+  font: 13px ui-monospace, Menlo, monospace;
+  word-break: break-all;
+}
+.hint { margin: 0; color: var(--dim); font-size: 13px; }
+.hint a { color: var(--fg); }
+
+/* Disconnect: always reachable while playing, fades with the rest of the overlay */
+.corner {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  margin: 0;
+  padding: 6px 14px;
+  font-size: 12px;
+  transition: opacity 0.6s;
+}
+body.idle .corner { opacity: 0; pointer-events: none; }
+
+/* overlay text: fades after 3 s without pointer movement (app.js toggles .idle) */
+#hud {
+  position: fixed;
+  left: 16px;
+  bottom: 12px;
+  right: 16px;
+  pointer-events: none;
+  transition: opacity 0.6s;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+#hud p { margin: 0; }
+#track { font-weight: 700; }
+#status, #keys { color: var(--dim); font-size: 12px; }
+body.idle #hud { opacity: 0; }
+body.idle { cursor: none; }
