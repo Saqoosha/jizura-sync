@@ -14,6 +14,8 @@ Usage and architecture are in README.md. This file holds what the code does not 
 - **Seek is optimistic.** `seek()` moves the local clock at once and sets `_seekAt`; a poll whose request started before that carries the old position and is ignored, otherwise the slider jumps back for up to a second.
 - **Now-playing bar:** hidden state is `jizura-sync.barHidden` (localStorage) and the bar is `inert` while hidden, so its controls leave the tab order. The status line lives inside the bar, so errors go through `showError()` → a toast outside it, once per distinct message while there is no playback state — "Nothing is playing" repeats every 3 s. Popping the whole bar up on every status was tried and reverted: with no device it stayed up permanently, and a click during the pop-up un-hid it for good. A click toggles the bar after 250 ms so a double click (fullscreen) does not flash it. The global keydown guard skips text inputs only; a focused range input (the seek slider) must not swallow shortcuts.
 
+- **Tesla / deploy:** `tools/deploy-cloudflare.sh` writes the Client ID only into a staged copy of `index.html` (seeds `jizura-sync.clientId` when empty) and uploads just `vendor/JIZURA/src`; the repo still never holds a Client ID. Tap buttons in the help are created by `app.js` only when the user agent contains `Tesla/` (or `?tesla`); elsewhere the help HTML is untouched — the user asked that non-Tesla browsers stay exactly as before. Workers assets are served `max-age=0, must-revalidate`.
+
 ## Checking changes
 
 - `./serve.sh`, then `?mock` / `?mock=Artist|Title|durationMs&t=<s>` — no Spotify account involved. Never start or change anyone's Spotify playback from an agent.

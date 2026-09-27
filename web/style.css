@@ -206,3 +206,10 @@ kbd {
 }
 
 body.idle { cursor: none; }
+
+/* Tesla (see app.js): the help's keys are tap targets. */
+.tap-keys #help .hint { margin: -6px 0 14px; }
+.tap-keys #help dl { align-items: center; }
+.tap-keys #help .key { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.tap-keys #help .key kbd { min-width: 44px; padding: 8px 10px; font-size: 14px; }
+.tap-keys #help .key:active kbd { background: rgba(244, 244, 244, 0.2); }
