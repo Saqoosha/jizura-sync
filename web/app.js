@@ -254,30 +254,50 @@ function toggleFullscreen() {
     else document.documentElement.requestFullscreen?.();
 }
 
-window.addEventListener('keydown', (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey || (e.target instanceof HTMLInputElement && e.target.type !== 'range')) return;
-    switch (e.key) {
-        case 'r': case 'R':
-            if (!song) return;
+/** One control, by its key name. Keys and the help window's buttons (no keyboard in a car) share it. */
+function runKey(key) {
+    switch (key.toLowerCase()) {
+        case 'r':
+            if (!song) return false;
             look = rollLook(null);
             buildPlan();
             break;
-        case 'k': case 'K': cycleKoma(); break;
-        case 'u': case 'U': toggleUnify(); break;
+        case 'k': cycleKoma(); break;
+        case 'u': toggleUnify(); break;
         case '[': setOffset(offsetMs - OFFSET_STEP_MS); break;
         case ']': setOffset(offsetMs + OFFSET_STEP_MS); break;
-        case ' ':
-            e.preventDefault();
-            togglePlay();
-            break;
-        case 'f': case 'F': toggleFullscreen(); break;
-        case 'h': case 'H': toggleBar(); break;
+        case ' ': togglePlay(); break;
+        case 'f': toggleFullscreen(); break;
+        case 'h': toggleBar(); break;
         case '?': $('help').hidden = !$('help').hidden; break;
-        case 'Escape': $('help').hidden = true; break;
-        default: return;
+        case 'escape': $('help').hidden = true; break;
+        default: return false;
     }
     wake();
+    return true;
+}
+
+window.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || (e.target instanceof HTMLInputElement && e.target.type !== 'range')) return;
+    if (runKey(e.key) && e.key === ' ') e.preventDefault();
 });
+// A car's browser has a touchscreen and no keyboard, so there every key in the help becomes a
+// button. Tesla's user agent ends in `Tesla/<version>`; `?tesla` does the same anywhere.
+if (/\bTesla\//.test(navigator.userAgent) || new URLSearchParams(location.search).has('tesla')) {
+    document.body.classList.add('tap-keys');
+    $('help').querySelectorAll('kbd').forEach((kbd) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'key';
+        kbd.replaceWith(b);
+        b.append(kbd);
+        b.addEventListener('click', () => runKey(kbd.textContent === 'Space' ? ' ' : kbd.textContent));
+    });
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = 'Tap a key to use it.';
+    $('help').querySelector('h2').after(hint);
+}
 window.addEventListener('dblclick', (e) => { if (!e.target.closest('#bar, #gate, #help')) toggleFullscreen(); });
 
 let resizeTimer = 0;

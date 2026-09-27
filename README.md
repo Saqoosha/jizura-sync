@@ -47,6 +47,7 @@ Start playing something on Spotify on any device (phone, desktop, speaker). The 
 - **Other accounts.** A new Spotify app is in *development mode*: up to 5 Spotify accounts can use it, and each must be added under the app's **User Management**. An account that is not on the list gets `403` on every call; the page tells you when that happens.
 - **Another port.** `PORT=8080 ./serve.sh`, then register `http://127.0.0.1:8080/` instead.
 - **Your own hosting** (GitHub Pages or any static host): serve `web/`, including the submodule, and register the page's exact `https://` URL as a Redirect URI. The URI is the page address without query or hash, and the setup screen shows it.
+- **A device without a keyboard** (a car's browser): `SPOTIFY_CLIENT_ID=<id> tools/deploy-cloudflare.sh` deploys `web/` to your own Cloudflare account with your Client ID filled in, so there is nothing to type. In Tesla's browser the keys in the help are tap buttons; `?tesla` shows them in any browser. Keep the deployment to your own devices.
 
 ## Controls
 
