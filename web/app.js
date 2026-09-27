@@ -256,7 +256,7 @@ function toggleFullscreen() {
 
 /** One control, by its key name. Keys and the help window's buttons (no keyboard in a car) share it. */
 function runKey(key) {
-    switch (key.toLowerCase()) {
+    switch (String(key).toLowerCase()) {
         case 'r':
             if (!song) return false;
             look = rollLook(null);
@@ -291,7 +291,8 @@ if (/\bTesla\//.test(navigator.userAgent) || new URLSearchParams(location.search
         b.className = 'key';
         kbd.replaceWith(b);
         b.append(kbd);
-        b.addEventListener('click', () => runKey(kbd.textContent === 'Space' ? ' ' : kbd.textContent));
+        // blur: a focused button would repeat on Enter / Space where a keyboard exists (?tesla).
+        b.addEventListener('click', () => { b.blur(); runKey(kbd.textContent === 'Space' ? ' ' : kbd.textContent); });
     });
     const hint = document.createElement('p');
     hint.className = 'hint';

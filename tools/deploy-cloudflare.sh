@@ -5,7 +5,8 @@
 #   SPOTIFY_CLIENT_ID=<32 hex> tools/deploy-cloudflare.sh [worker-name]
 #
 # The Client ID is written only into the staged copy of index.html, never into the repo: it seeds
-# `jizura-sync.clientId` when the browser has none, so "Change Client ID" still works. Register
+# `jizura-sync.clientId` when the browser has none, so "Change Client ID" still works -- and a
+# browser that already has an ID keeps it after a redeploy with another one. Register
 # https://<worker-name>.<your-subdomain>.workers.dev/ as a Redirect URI on the Spotify app.
 # This is for your own devices only -- see the README disclaimer.
 set -euo pipefail
@@ -22,7 +23,7 @@ trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/public/vendor/JIZURA"
 # The page loads only JIZURA's src/*.js; the rest of the submodule is ~30 MB of editor and docs.
 rsync -a --exclude vendor --exclude .DS_Store "$ROOT/web/" "$STAGE/public/"
-rsync -a "$ROOT/web/vendor/JIZURA/src" "$STAGE/public/vendor/JIZURA/"
+rsync -a "$ROOT/web/vendor/JIZURA/src" "$ROOT/web/vendor/JIZURA/LICENSE" "$ROOT/web/vendor/JIZURA/THIRD_PARTY_NOTICES.md" "$STAGE/public/vendor/JIZURA/"
 
 python3 - "$STAGE/public/index.html" "$ID" <<'EOF'
 import sys
