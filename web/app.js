@@ -156,12 +156,14 @@ function tick() {
     if (state && state.trackId && state.trackId !== trackId && state.durationMs > 0) loadTrack(state);
     if (state) lastError = null;
     updateBar(state);
+    // The notice belongs to the song it was shown for: gone once that song is.
+    if ((!state || state.trackId !== trackId) && !$('notice').hidden) $('notice').hidden = true;
     if (!plan || !state || state.trackId !== trackId) return;
-    const t = Math.min(Math.max(0, (state.positionMs + offsetMs) / 1000), plan.duration - 1e-3);
-    if (drawn && drawn.plan === plan && drawn.t === t && drawn.w === canvas.width && drawn.h === canvas.height) return;
-    drawn = { plan, t, w: canvas.width, h: canvas.height };
+    const time = Math.min(Math.max(0, (state.positionMs + offsetMs) / 1000), plan.duration - 1e-3);
+    if (drawn && drawn.plan === plan && drawn.time === time && drawn.w === canvas.width && drawn.h === canvas.height) return;
+    drawn = { plan, time, w: canvas.width, h: canvas.height };
     const t0 = performance.now();
-    renderer.frame(ctx, plan, t, { scale: canvas.width / plan.W, fast: slow });
+    renderer.frame(ctx, plan, time, { scale: canvas.width / plan.W, fast: slow });
     // Same hysteresis as JIZURA's editor: drop blur filters while frames run long.
     const dt = performance.now() - t0;
     slow = dt > 30 ? true : dt < 14 ? false : slow;
@@ -188,6 +190,7 @@ function startPlayer() {
 /** The gate is the only non-playing screen: set up the client ID, connect, or explain a failure. */
 function showGate(text) {
     player?.stop();
+    $('notice').hidden = true;
     player = null;
     $('gateText').textContent = text;
     const configured = !!auth.clientId();

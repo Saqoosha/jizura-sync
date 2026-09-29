@@ -401,7 +401,8 @@ final class DraggableWebView: WKWebView {
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         let point = NSPoint(x: p.x, y: isFlipped ? p.y : bounds.height - p.y)
-        guard let window, !window.styleMask.contains(.fullScreen), !noDrag.contains(where: { $0.contains(point) }) else {
+        guard let window, !window.styleMask.contains(.fullScreen), !event.modifierFlags.contains(.control),
+              !noDrag.contains(where: { $0.contains(point) }) else {
             return super.mouseDown(with: event)
         }
         let start = event.locationInWindow

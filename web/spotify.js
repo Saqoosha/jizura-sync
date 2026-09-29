@@ -88,10 +88,10 @@ async function tokenRequest(params) {
 }
 
 async function accessToken(force = false) {
-    const t = store.get(TOKENS_KEY);
-    if (!t?.refresh_token) throw new SpotifyError('auth', t('Not connected to Spotify'));
-    if (!force && t.access_token && t.expires_at - Date.now() > 60_000) return t.access_token;
-    refreshing ||= tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refresh_token }).finally(() => { refreshing = null; });
+    const tokens = store.get(TOKENS_KEY);
+    if (!tokens?.refresh_token) throw new SpotifyError('auth', t('Not connected to Spotify'));
+    if (!force && tokens.access_token && tokens.expires_at - Date.now() > 60_000) return tokens.access_token;
+    refreshing ||= tokenRequest({ grant_type: 'refresh_token', refresh_token: tokens.refresh_token }).finally(() => { refreshing = null; });
     await refreshing;
     return store.get(TOKENS_KEY).access_token;
 }
