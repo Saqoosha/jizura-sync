@@ -40,6 +40,7 @@ for arch in arm64 x86_64; do
 done
 lipo -create "$OUT/obj/jizura-sync-arm64" "$OUT/obj/jizura-sync-x86_64" -output "$APP/Contents/MacOS/jizura-sync"
 ditto "$SPARKLE/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+cp "$SPARKLE/LICENSE" "$APP/Contents/Resources/Sparkle-LICENSE"      # MIT: the notice ships with the binary
 cp "$ROOT/mac/Info.plist" "$APP/Contents/Info.plist"
 cp -R "$ROOT/mac/en.lproj" "$ROOT/mac/ja.lproj" "$APP/Contents/Resources/"
 # Sparkle compares CFBundleVersion: the commit count only ever grows on main.

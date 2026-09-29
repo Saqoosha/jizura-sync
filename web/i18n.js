@@ -22,8 +22,8 @@ const JA = {
     'Nothing is playing on Spotify': 'Spotify で何も再生していません',
 
     // playback from the macOS app
-    'Music': 'ミュージック',
-    'Open Spotify or Music and play a song': 'Spotify かミュージックで曲を再生してください',
+    'Music': 'ミュージックApp',
+    'Open Spotify or Music and play a song': 'Spotify かミュージックApp で曲を再生してください',
     'Nothing is playing in {apps}': '{apps}で何も再生していません',
     ' or ': 'と',
     'Allow jizura-sync to control {app} in System Settings → Privacy & Security → Automation':

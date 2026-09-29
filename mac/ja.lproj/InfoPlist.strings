@@ -1,1 +1,1 @@
-NSAppleEventsUsageDescription = "jizura-sync は、Spotify や ミュージック で再生中の曲と再生位置を読み取って、歌詞のタイミングを合わせます。再生・一時停止・スキップ・シークのボタンは、そのアプリを操作します。";
+NSAppleEventsUsageDescription = "jizura-sync は、Spotify やミュージックApp で再生中の曲と再生位置を読み取って、歌詞のタイミングを合わせます。再生・一時停止・スキップ・シークのボタンは、そのアプリを操作します。";
