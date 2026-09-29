@@ -1,6 +1,8 @@
 // Playback from the macOS app (mac/main.swift), which calls `window.jizuraNative.update(state)`
 // with each reading of the Spotify / Music app. Same interface as SpotifyPlayer.
 
+import { t } from './i18n.js';
+
 /** A reading that disagrees with the running clock by less than this is jitter, not a seek. */
 const RESYNC_MS = 120;
 
@@ -42,6 +44,8 @@ export class NativePlayer {
     pause() { this._post({ cmd: 'pause' }); }
     next() { this._post({ cmd: 'next' }); }
     previous() { this._post({ cmd: 'previous' }); }
+    /** Areas (CSS px: x, y, width, height) where a mouse drag must not move the window. */
+    setNoDrag(rects) { this._post({ cmd: 'noDrag', rects }); }
     seek(ms) {
         ms = Math.max(0, Math.round(ms));
         // Move the local clock now so the lyrics jump with the slider; the next reading confirms.
@@ -50,13 +54,14 @@ export class NativePlayer {
     }
 
     _post(msg) {
-        if (msg.cmd !== 'start') msg.seq = ++this._seq;
+        if (msg.cmd !== 'start' && msg.cmd !== 'noDrag') msg.seq = ++this._seq;
         window.webkit.messageHandlers.jizuraNative.postMessage(msg);
     }
 
     _update(s) {
         if (s.seq < this._seq) return;
         if (s.error) {
+            s.error.message = errorText(s.error);
             // Nothing to follow, or not allowed to look. A failed read keeps the track: the retry
             // usually succeeds, and dropping it would blank the bar in between.
             if (s.error.kind === 'idle' || s.error.kind === 'permission') {
@@ -77,5 +82,17 @@ export class NativePlayer {
         this._playing = s.playing;
         this._anchorPos = s.positionMs;
         this._anchorAt = now;
+    }
+}
+
+/** The bridge sends what went wrong ({ kind, app, apps, detail }); the words are made here. */
+function errorText({ kind, app, apps = [], detail }) {
+    app = t(app ?? '');
+    apps = apps.map((a) => t(a));
+    switch (kind) {
+        case 'idle': return apps.length ? t('Nothing is playing in {apps}', { apps: apps.join(t(' or ')) }) : t('Open Spotify or Music and play a song');
+        case 'permission': return t('Allow jizura-sync to control {app} in System Settings → Privacy & Security → Automation', { app });
+        case 'script': return t('Could not read {app}: {detail}', { app, detail });
+        default: return t('Could not read the current track from {app}', { app });
     }
 }

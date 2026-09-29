@@ -11,6 +11,7 @@
 
 import AppKit
 import ScriptingBridge
+import Sparkle
 import WebKit
 
 // MARK: - Players
@@ -278,10 +279,15 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
         webView?.evaluateJavaScript("window.jizuraNative && window.jizuraNative.update(\(json))")
     }
 
-    // Page → native: { cmd: 'start' } or { cmd: 'play' | 'pause' | 'next' | 'previous' | 'seek', ms?, seq }
+    // Page → native: { cmd: 'start' }, { cmd: 'noDrag', rects } or { cmd: 'play' | 'pause' | 'next' | 'previous' | 'seek', ms?, seq }
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any], let cmd = body["cmd"] as? String else { return }
         if cmd == "start" { start(); return }
+        if cmd == "noDrag" {
+            let rects = (body["rects"] as? [[Double]] ?? []).filter { $0.count == 4 }
+            (webView as? DraggableWebView)?.noDrag = rects.map { NSRect(x: $0[0], y: $0[1], width: $0[2], height: $0[3]) }
+            return
+        }
         let seq = body["seq"] as? Int ?? 0
         guard ["play", "pause", "next", "previous", "seek"].contains(cmd) else { return }
         let ms = body["ms"] as? Double ?? 0
@@ -298,7 +304,7 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
         let seq = commandSeq       // the page drops readings started before its latest command
         struct Reading { let source: Source; let state: String; let positionS: Double; let trackId: String; let at: Double }
         var readings: [Reading] = []
-        var failures: [String] = []
+        var failures: [(app: String, detail: String)] = []
         var denied: Source?
         let running = [spotify, music].filter(\.isRunning)
         for source in running {
@@ -309,7 +315,7 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
                 denied = source            // reported only if the other player gives nothing to follow
             } catch {
                 // Quit mid-poll or busy: the next poll retries. Reported only if no player reads.
-                failures.append("Could not read \(source.name): \((error as? ScriptError)?.message ?? "\(error)")")
+                failures.append((source.name, (error as? ScriptError)?.message ?? "\(error)"))
             }
         }
         // Follow the app that is playing; while nothing plays, stay on the one followed last.
@@ -318,23 +324,18 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
         guard let pick = playing.first(where: { $0.source === followed }) ?? playing.first
                 ?? withTrack.first(where: { $0.source === followed }) ?? withTrack.first else {
             followed = nil
-            if let denied {
-                return ["seq": seq, "error": ["kind": "permission",
-                    "message": "Allow jizura-sync to control \(denied.name) in System Settings → Privacy & Security → Automation"]]
-            }
-            if let failure = failures.first { return ["seq": seq, "error": ["kind": "script", "message": failure]] }
-            return ["seq": seq, "error": ["kind": "idle",
-                "message": running.isEmpty ? "Open Spotify or Music and play a song" : "Nothing is playing in \(running.map(\.name).joined(separator: " or "))"]]
+            if let denied { return ["seq": seq, "error": ["kind": "permission", "app": denied.name]] }
+            if let failure = failures.first { return ["seq": seq, "error": ["kind": "script", "app": failure.app, "detail": failure.detail]] }
+            return ["seq": seq, "error": ["kind": "idle", "apps": running.map(\.name)]]
         }
         if let denied, pick.state != "playing" {       // the denied player may be the one playing
-            return ["seq": seq, "error": ["kind": "permission",
-                "message": "Allow jizura-sync to control \(denied.name) in System Settings → Privacy & Security → Automation"]]
+            return ["seq": seq, "error": ["kind": "permission", "app": denied.name]]
         }
         followed = pick.source
         let key = "\(pick.source.bundleID):\(pick.trackId)"
         if key != trackKey {
             guard let meta = try? pick.source.readTrack(key: key) else {
-                return ["seq": seq, "error": ["kind": "transient", "message": "Could not read the current track from \(pick.source.name)"]]
+                return ["seq": seq, "error": ["kind": "transient", "app": pick.source.name]]
             }
             track = meta
             trackKey = key
@@ -378,6 +379,46 @@ final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
 
 // MARK: - App
 
+/** Menu titles in Japanese when the app runs in Japanese (ja.lproj), else the English given. */
+func L(_ en: String) -> String {
+    guard Bundle.main.preferredLocalizations.first == "ja" else { return en }
+    return [
+        "About jizura-sync": "jizura-sync について", "Check for Updates…": "アップデートを確認…",
+        "Hide jizura-sync": "jizura-sync を隠す", "Quit jizura-sync": "jizura-sync を終了",
+        "View": "表示", "Reload": "再読み込み", "Enter Full Screen": "フルスクリーンにする",
+        "Window": "ウインドウ", "Minimize": "しまう", "Close": "閉じる",
+    ][en] ?? en
+}
+
+/**
+ * Lets a drag anywhere on the page move the window, except over the controls the page reports
+ * (`noDrag`, CSS px from the top-left). A press that does not move is handed to the page as a
+ * normal click, so click-to-hide and double-click full screen keep working.
+ */
+final class DraggableWebView: WKWebView {
+    var noDrag: [NSRect] = []
+
+    override func mouseDown(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        let point = NSPoint(x: p.x, y: isFlipped ? p.y : bounds.height - p.y)
+        guard let window, !window.styleMask.contains(.fullScreen), !noDrag.contains(where: { $0.contains(point) }) else {
+            return super.mouseDown(with: event)
+        }
+        let start = event.locationInWindow
+        while let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
+            if next.type == .leftMouseUp {
+                super.mouseDown(with: event)
+                super.mouseUp(with: next)
+                return
+            }
+            if hypot(next.locationInWindow.x - start.x, next.locationInWindow.y - start.y) > 3 {
+                window.performDrag(with: event)
+                return
+            }
+        }
+    }
+}
+
 /**
  * The page fills the window under a transparent title bar, so the web view takes every click
  * there. This strip over the title bar gives dragging (and double-click zoom) back to the window.
@@ -402,6 +443,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKUI
     private var webView: WKWebView!
     private var bridge: PlayerBridge!
     private var dragBar: TitleBarDragView!
+    // Checks the GitHub release feed (Info.plist SUFeedURL); Sparkle asks before checking automatically.
+    private let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
@@ -411,7 +454,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKUI
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(BundleSchemeHandler(root: root), forURLScheme: BundleSchemeHandler.scheme)
         config.preferences.isElementFullscreenEnabled = true
-        webView = WKWebView(frame: .zero, configuration: config)
+        webView = DraggableWebView(frame: .zero, configuration: config)
         webView.isInspectable = true
         webView.uiDelegate = self
         webView.navigationDelegate = self
@@ -537,25 +580,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKUI
         let main = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About jizura-sync", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: L("About jizura-sync"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let check = appMenu.addItem(withTitle: L("Check for Updates…"), action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        check.target = updater
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide jizura-sync", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "Quit jizura-sync", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: L("Hide jizura-sync"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: L("Quit jizura-sync"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
 
         let viewItem = NSMenuItem()
-        let viewMenu = NSMenu(title: "View")
-        viewMenu.addItem(withTitle: "Reload", action: #selector(reloadPage(_:)), keyEquivalent: "r")
-        let full = viewMenu.addItem(withTitle: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
+        let viewMenu = NSMenu(title: L("View"))
+        viewMenu.addItem(withTitle: L("Reload"), action: #selector(reloadPage(_:)), keyEquivalent: "r")
+        let full = viewMenu.addItem(withTitle: L("Enter Full Screen"), action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
         full.keyEquivalentModifierMask = [.command, .control]
         viewItem.submenu = viewMenu
         main.addItem(viewItem)
 
         let windowItem = NSMenuItem()
-        let windowMenu = NSMenu(title: "Window")
-        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
-        windowMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        let windowMenu = NSMenu(title: L("Window"))
+        windowMenu.addItem(withTitle: L("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(withTitle: L("Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         windowItem.submenu = windowMenu
         main.addItem(windowItem)
         NSApp.windowsMenu = windowMenu

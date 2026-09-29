@@ -68,6 +68,8 @@ SIGN_IDENTITY="Developer ID Application: <name> (<team>)" NOTARY_PROFILE=<profil
 
 `<profile>` は `xcrun notarytool store-credentials` で一度保存したキーチェーンのプロファイル。出力は `build/jizura-sync.zip`。
 
+公証済みのビルドは [Releases](https://github.com/Saqoosha/jizura-sync/releases) に置き、アプリはそこから自分で更新する（**jizura-sync → Check for Updates…**、[Sparkle](https://sparkle-project.org)）。公開は `tools/release-mac.sh <version>` で行う。
+
 ## 操作
 
 画面下のバーに、ジャケット・曲名と、Spotify の再生 / 一時停止・前へ / 次へ・シークがある。`?` キーかバーの `?` ボタンで、下の操作一覧が開く。

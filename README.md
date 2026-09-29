@@ -68,6 +68,8 @@ SIGN_IDENTITY="Developer ID Application: <name> (<team>)" NOTARY_PROFILE=<profil
 
 `<profile>` is a keychain profile saved once with `xcrun notarytool store-credentials`. The result is `build/jizura-sync.zip`.
 
+Notarized builds are published on the [Releases](https://github.com/Saqoosha/jizura-sync/releases) page, and the app updates itself from there (**jizura-sync → Check for Updates…**, [Sparkle](https://sparkle-project.org)). `tools/release-mac.sh <version>` publishes one.
+
 ## Controls
 
 The bar at the bottom shows the cover art, the track, and play / pause, previous / next and seek on Spotify. Press `?` or the `?` button for the controls below.
