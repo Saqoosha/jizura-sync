@@ -114,7 +114,7 @@ async function loadTrack(state) {
     } catch (err) {
         if (token !== loadToken) return;
         console.warn('lyrics', err);
-        showError(t('Lyrics lookup failed: {detail}', { detail: err.message }));
+        setStatus(t('Lyrics lookup failed: {detail}', { detail: err.message }));    // the notice says it; no toast
         showNotice(t('No lyrics: lookup failed ({detail})', { detail: err.message }));
         return;
     }
