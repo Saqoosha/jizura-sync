@@ -224,19 +224,14 @@ function write(key, value) {
     try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* storage blocked */ }
 }
 
-let infoStatus = '';          // last status that was not an error, restored when playback recovers
-function setStatus(text, isError = false) {
-    if (!isError) infoStatus = text;
-    $('status').textContent = text;
-    wake();
-}
+function setStatus(text) { $('status').textContent = text; wake(); }
 function togglePlay() { if (player) (player.isPlaying() ? player.pause() : player.play()); }
 
 // Errors also reach a user who hid the bar: a toast outside it, once per distinct message
 // while nothing plays (a missing device reports every 3 s).
 let lastError = null, toastTimer = 0;
 function showError(text) {
-    setStatus(text, true);
+    setStatus(text);
     if (!barHidden || $('bar').hidden || text === lastError) return;
     lastError = text;
     $('toast').textContent = text;
@@ -427,8 +422,10 @@ async function boot() {
     // Inside the macOS app: the Spotify / Music app on this Mac, no sign-in.
     if (hasNative()) {
         player = new NativePlayer();
-        player.onError((err) => showError(err.message));
-        player.onRecover(() => setStatus(infoStatus));
+        // A failed read is retried; once it succeeds, the bar goes back to what it said before.
+        let beforeError = null;
+        player.onError((err) => { beforeError ??= $('status').textContent; showError(err.message); });
+        player.onRecover(() => { if (beforeError !== null) setStatus(beforeError); beforeError = null; });
         player.start();
         showBar();
         return;

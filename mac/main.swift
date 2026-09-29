@@ -93,7 +93,7 @@ final class Source: NSObject, SBApplicationDelegate {
         let t0 = ProcessInfo.processInfo.systemUptime
         let position = (try get(app, "playerPosition") as? NSNumber)?.doubleValue ?? 0
         let t1 = ProcessInfo.processInfo.systemUptime
-        guard let track = app.value(forKey: "currentTrack") as? SBObject else { return ("stopped", 0, "", 0) }
+        guard let track = try get(app, "currentTrack") as? SBObject else { throw ScriptError(number: 0, message: "no current track") }
         var id = (try? get(track, trackIDKey)) as? String ?? ""
         if id.isEmpty { id = (try get(track, "name") as? String) ?? "" }       // Music: a stream may have no ID
         return (code == fourCC("kPSp") ? "paused" : "playing", position, id, (t0 + t1) / 2)
@@ -326,6 +326,10 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
             return ["seq": seq, "error": ["kind": "idle",
                 "message": running.isEmpty ? "Open Spotify or Music and play a song" : "Nothing is playing in \(running.map(\.name).joined(separator: " or "))"]]
         }
+        if let denied, pick.state != "playing" {       // the denied player may be the one playing
+            return ["seq": seq, "error": ["kind": "permission",
+                "message": "Allow jizura-sync to control \(denied.name) in System Settings → Privacy & Security → Automation"]]
+        }
         followed = pick.source
         let key = "\(pick.source.bundleID):\(pick.trackId)"
         if key != trackKey {
@@ -458,7 +462,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKUI
     private var resizeStart: NSRect?
 
     // No title bar in full screen: the strip would only take the page's clicks.
-    func windowWillEnterFullScreen(_ notification: Notification) { dragBar.isHidden = true }
+    func windowDidEnterFullScreen(_ notification: Notification) { dragBar.isHidden = true }
     func windowDidExitFullScreen(_ notification: Notification) { dragBar.isHidden = false }
 
     func windowDidChangeOcclusionState(_ notification: Notification) {
