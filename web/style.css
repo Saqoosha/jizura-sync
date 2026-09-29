@@ -168,16 +168,16 @@ body.bar-hidden #bar { opacity: 0; transform: translateY(12px); pointer-events: 
 /* why the song shows no lyrics; stays up while the bar is hidden */
 #notice {
   position: fixed;
-  left: 50%;
-  top: 50%;
+  inset: 0;
+  width: fit-content;
+  height: fit-content;
   max-width: calc(100% - 32px);
-  margin: 0;
+  margin: auto;                     /* centred without a transform: -50% lands on half pixels and blurs the text */
   padding: 8px 18px;
   border-radius: 999px;
   background: rgba(18, 18, 18, 0.72);
   color: var(--fg);
   font-size: 14px;
-  transform: translate(-50%, -50%);
   pointer-events: none;
 }
 
