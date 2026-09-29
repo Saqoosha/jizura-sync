@@ -1,7 +1,5 @@
-// Playback from the macOS app (mac/main.swift): it reads the Spotify and Music apps on the same
-// Mac over AppleScript and calls `window.jizuraNative.update(state)` on every track change, play
-// and pause, and once a second while playing. Same interface as SpotifyPlayer, so app.js does not
-// care which one it drives.
+// Playback from the macOS app (mac/main.swift), which calls `window.jizuraNative.update(state)`
+// with each reading of the Spotify / Music app. Same interface as SpotifyPlayer.
 
 /** A reading that disagrees with the running clock by less than this is jitter, not a seek. */
 const RESYNC_MS = 120;
@@ -17,9 +15,12 @@ export class NativePlayer {
         this._seq = 0;               // last command sent; readings taken before it are stale
         this._lastError = null;
         this._onError = () => {};
+        this._onRecover = () => {};
     }
 
     onError(cb) { this._onError = cb; }
+    /** First good reading after an error. */
+    onRecover(cb) { this._onRecover = cb; }
 
     start() {
         window.jizuraNative = { update: (s) => this._update(s) };
@@ -56,14 +57,18 @@ export class NativePlayer {
     _update(s) {
         if (s.seq < this._seq) return;
         if (s.error) {
-            this._track = null;
-            this._playing = false;
-            // Readings come twice a second; report a condition once, not on every one.
+            // Nothing to follow, or not allowed to look. A failed read keeps the track: the retry
+            // usually succeeds, and dropping it would blank the bar in between.
+            if (s.error.kind === 'idle' || s.error.kind === 'permission') {
+                this._track = null;
+                this._playing = false;
+            }
+            // Errors repeat on every retry; report each condition once.
             if (s.error.message !== this._lastError) this._onError(s.error);
             this._lastError = s.error.message;
             return;
         }
-        this._lastError = null;
+        if (this._lastError) { this._lastError = null; this._onRecover(); }
         const now = performance.now();
         const sameTrack = this._track?.trackId === s.track.trackId;
         if (!sameTrack) this._track = s.track;

@@ -2,7 +2,7 @@
 // this Mac instead of the Spotify Web API.
 //
 // Playback comes from each app's scripting dictionary (player state, player position, current
-// track), read over Apple Events -- no account, no Client ID, no network. The page is served from
+// track), read over Apple Events -- no account, no Client ID. The page is served from
 // the bundle through a custom scheme, because WebKit refuses ES modules from file:// URLs.
 //
 // Build: tools/build-mac.sh. Set JIZURA_WEB_ROOT=<repo>/web to serve the page from a checkout
@@ -164,8 +164,8 @@ let music = Source(name: "Music", bundleID: "com.apple.Music", commandClass: "ho
  *
  * Both apps post a distributed notification on a track change, play and pause (measured), so a
  * reading follows each one at once. Neither posts one on a seek, so while something plays the
- * bridge also reads once a second to catch a seek made in the player app. While paused or idle
- * it sends no Apple Events at all and waits for a notification or for a player to launch.
+ * bridge also reads once a second to catch a seek made in the player app. Paused or idle, with no
+ * error to retry, it waits for a notification or for a player to launch.
  */
 @MainActor
 final class PlayerBridge: NSObject, WKScriptMessageHandler {
@@ -208,11 +208,11 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
     /** Called by each page load, so a reload gets the current state too. */
     func start() {
         if observers.isEmpty {
-            let distributed = DistributedNotificationCenter.default()
+            // AppKit holds distributed notifications back while the app is inactive, which is
+            // most of the time here; only the selector API can ask for them regardless.
             for name in Self.notifications {
-                observers.append(distributed.addObserver(forName: Notification.Name(name), object: nil, queue: .main) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.pollNow() }
-                })
+                DistributedNotificationCenter.default().addObserver(self, selector: #selector(playerChanged(_:)), name: Notification.Name(name),
+                                                                    object: nil, suspensionBehavior: .deliverImmediately)
             }
             let workspace = NSWorkspace.shared.notificationCenter
             for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
@@ -223,8 +223,11 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
                 })
             }
         }
+        queue.async { self.commandSeq = 0 }    // the new page counts its commands from 0
         pollNow()
     }
+
+    @objc private func playerChanged(_ note: Notification) { pollNow() }
 
     private func pollNow() {
         timer?.invalidate()
@@ -275,7 +278,7 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
         webView?.evaluateJavaScript("window.jizuraNative && window.jizuraNative.update(\(json))")
     }
 
-    // Page → native: { cmd: 'start' | 'play' | 'pause' | 'next' | 'previous' | 'seek', ms?, seq }
+    // Page → native: { cmd: 'start' } or { cmd: 'play' | 'pause' | 'next' | 'previous' | 'seek', ms?, seq }
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any], let cmd = body["cmd"] as? String else { return }
         if cmd == "start" { start(); return }
@@ -292,18 +295,18 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
 
     /** One reading of every running player. Runs on `queue`. */
     nonisolated private func poll() -> [String: Any] {
-        let seq = commandSeq       // polls taken after a seek carry the new position
+        let seq = commandSeq       // the page drops readings started before its latest command
         struct Reading { let source: Source; let state: String; let positionS: Double; let trackId: String; let at: Double }
         var readings: [Reading] = []
         var failures: [String] = []
+        var denied: Source?
         let running = [spotify, music].filter(\.isRunning)
         for source in running {
             do {
                 let r = try source.readState()
                 readings.append(Reading(source: source, state: r.state, positionS: r.positionS, trackId: r.trackID, at: r.at))
             } catch let e as ScriptError where e.isPermission {
-                return ["seq": seq, "error": ["kind": "permission",
-                    "message": "Allow jizura-sync to control \(source.name) in System Settings → Privacy & Security → Automation"]]
+                denied = source            // reported only if the other player gives nothing to follow
             } catch {
                 // Quit mid-poll or busy: the next poll retries. Reported only if no player reads.
                 failures.append("Could not read \(source.name): \((error as? ScriptError)?.message ?? "\(error)")")
@@ -315,6 +318,10 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
         guard let pick = playing.first(where: { $0.source === followed }) ?? playing.first
                 ?? withTrack.first(where: { $0.source === followed }) ?? withTrack.first else {
             followed = nil
+            if let denied {
+                return ["seq": seq, "error": ["kind": "permission",
+                    "message": "Allow jizura-sync to control \(denied.name) in System Settings → Privacy & Security → Automation"]]
+            }
             if let failure = failures.first { return ["seq": seq, "error": ["kind": "script", "message": failure]] }
             return ["seq": seq, "error": ["kind": "idle",
                 "message": running.isEmpty ? "Open Spotify or Music and play a song" : "Nothing is playing in \(running.map(\.name).joined(separator: " or "))"]]
@@ -337,7 +344,7 @@ final class PlayerBridge: NSObject, WKScriptMessageHandler {
 
 // MARK: - Page
 
-/** Serves `jizura://app/<path>` from the bundled web/ directory. */
+/** Serves `jizura://app/<path>` from `root`: the bundled web/, or JIZURA_WEB_ROOT. */
 final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "jizura"
     private let root: URL
@@ -390,6 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKUI
     private var window: NSWindow!
     private var webView: WKWebView!
     private var bridge: PlayerBridge!
+    private var dragBar: TitleBarDragView!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
@@ -420,7 +428,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKUI
         webView.frame = content.bounds
         webView.autoresizingMask = [.width, .height]
         content.addSubview(webView)
-        let dragBar = TitleBarDragView()
+        dragBar = TitleBarDragView()
         dragBar.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(dragBar)
         NSLayoutConstraint.activate([
@@ -448,6 +456,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKUI
     }
 
     private var resizeStart: NSRect?
+
+    // No title bar in full screen: the strip would only take the page's clicks.
+    func windowWillEnterFullScreen(_ notification: Notification) { dragBar.isHidden = true }
+    func windowDidExitFullScreen(_ notification: Notification) { dragBar.isHidden = false }
 
     func windowDidChangeOcclusionState(_ notification: Notification) {
         bridge.visible = window.occlusionState.contains(.visible)
@@ -496,17 +508,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKUI
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    // Links that leave the page (target=_blank, or any http(s) navigation) open in the browser.
+    // Links that leave the page (target=_blank, or any main-frame navigation off jizura://) open in
+    // the browser; only http(s), so nothing the page links to can open a file or another app.
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if let url = action.request.url { NSWorkspace.shared.open(url) }
+        openExternal(action.request.url)
         return nil
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
         guard let url = action.request.url, url.scheme != BundleSchemeHandler.scheme, action.targetFrame?.isMainFrame == true else { return .allow }
-        NSWorkspace.shared.open(url)
+        openExternal(url)
         return .cancel
+    }
+
+    private func openExternal(_ url: URL?) {
+        guard let url, ["http", "https"].contains(url.scheme?.lowercased()) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     @objc private func reloadPage(_ sender: Any?) { webView.reload() }

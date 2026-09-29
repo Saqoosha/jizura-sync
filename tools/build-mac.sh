@@ -6,8 +6,8 @@
 #   SIGN_IDENTITY=… NOTARY_PROFILE=<notarytool keychain profile> tools/build-mac.sh
 #
 # With a Developer ID and a notary profile (`xcrun notarytool store-credentials`), the result is
-# a notarized, stapled build/jizura-sync.zip that opens on other Macs without a Gatekeeper
-# warning. Keep what you hand out to people you know -- see the README disclaimer.
+# build/jizura-sync.zip of the notarized, stapled app, which opens on other Macs without a
+# Gatekeeper warning.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

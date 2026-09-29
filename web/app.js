@@ -138,8 +138,8 @@ function sizeCanvas() {
     canvas.style.height = `${cssH}px`;
 }
 
-// What the canvas shows. The renderer depends only on the plan, the time and the loaded fonts, so
-// a frame that would repeat it (paused) is skipped; a font arriving redraws.
+// What the canvas shows. A frame depends only on the plan, the time, the canvas size and the
+// loaded fonts, so one that would repeat it (paused) is skipped; a font arriving redraws.
 let drawn = null;
 document.fonts.addEventListener('loadingdone', () => { drawn = null; });
 
@@ -224,14 +224,19 @@ function write(key, value) {
     try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* storage blocked */ }
 }
 
-function setStatus(text) { $('status').textContent = text; wake(); }
+let infoStatus = '';          // last status that was not an error, restored when playback recovers
+function setStatus(text, isError = false) {
+    if (!isError) infoStatus = text;
+    $('status').textContent = text;
+    wake();
+}
 function togglePlay() { if (player) (player.isPlaying() ? player.pause() : player.play()); }
 
 // Errors also reach a user who hid the bar: a toast outside it, once per distinct message
 // while nothing plays (a missing device reports every 3 s).
 let lastError = null, toastTimer = 0;
 function showError(text) {
-    setStatus(text);
+    setStatus(text, true);
     if (!barHidden || $('bar').hidden || text === lastError) return;
     lastError = text;
     $('toast').textContent = text;
@@ -423,6 +428,7 @@ async function boot() {
     if (hasNative()) {
         player = new NativePlayer();
         player.onError((err) => showError(err.message));
+        player.onRecover(() => setStatus(infoStatus));
         player.start();
         showBar();
         return;
