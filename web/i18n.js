@@ -37,6 +37,7 @@ const JA = {
     'No lyrics: lookup failed ({detail})': '歌詞なし: 検索に失敗しました（{detail}）',
     'Instrumental': 'インストゥルメンタル',
     'No synced lyrics for this track': 'この曲にはタイミング付きの歌詞がありません',
+    'No lyrics: a stream has no song position to time them to': '歌詞なし: ストリームには曲の中の再生位置がないため、タイミングを合わせられません',
     'No lyrics found for this track': 'この曲の歌詞が見つかりません',
     '{n} cuts': '{n} カット',
     'same style per section': 'セクションごとに同じスタイル',

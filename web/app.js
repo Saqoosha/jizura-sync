@@ -131,6 +131,23 @@ async function loadTrack(state) {
     console.info(`[jizura-sync] ${state.title}: ${lines} lines in ${parts} parts`);
 }
 
+/**
+ * A radio station or live stream: its position is not a place in a song, so there is nothing to
+ * time lyrics against. Show what is playing and say so.
+ */
+function loadStream(state) {
+    ++loadToken;                    // a lookup still running for the previous song is dropped
+    trackId = state.trackId;
+    song = null; plan = null;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    $('track').textContent = [state.title, state.artist].filter(Boolean).join(' — ');
+    $('art').hidden = !state.artUrl;
+    if (state.artUrl) $('art').src = state.artUrl;
+    const why = t('No lyrics: a stream has no song position to time them to');
+    setStatus(why);
+    showNotice(why);
+}
+
 // ---------------------------------------------------------------- drawing
 
 function sizeCanvas() {
@@ -153,7 +170,7 @@ document.fonts.addEventListener('loadingdone', () => { drawn = null; });
 function tick() {
     requestAnimationFrame(tick);
     const state = player?.getState();
-    if (state && state.trackId && state.trackId !== trackId && state.durationMs > 0) loadTrack(state);
+    if (state && state.trackId && state.trackId !== trackId) (state.durationMs > 0 ? loadTrack(state) : loadStream(state));
     if (state) lastError = null;
     updateBar(state);
     // The notice belongs to the song it was shown for: gone once that song is.
