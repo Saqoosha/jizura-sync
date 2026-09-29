@@ -39,17 +39,42 @@ export async function fetchLyrics(track, signal) {
     return hits.length ? shape(hits[0]) : null;
 }
 
-/** GET with our client header. On 429 it waits out Retry-After once, as LRCLIB requires. */
-async function lrclib(path, signal, retried = false) {
-    const res = await fetch(`${API}${path}`, { signal, headers: { 'Lrclib-Client': CLIENT } });
-    if (res.status !== 429 || retried) return res;
-    const wait = Number(res.headers.get('Retry-After')) || 5;
-    if (wait > MAX_RETRY_AFTER_S) return res;
-    await new Promise((resolve, reject) => {
-        const t = setTimeout(resolve, wait * 1000);
-        signal?.addEventListener('abort', () => { clearTimeout(t); reject(signal.reason); }, { once: true });
+/** Waits before retrying a 5xx or a failed request: LRCLIB has short outages. */
+const RETRY_DELAYS_S = [2, 5];
+
+/**
+ * GET with our client header. On 429 it waits out Retry-After once, as LRCLIB requires; a 5xx
+ * or a network failure is retried after each of RETRY_DELAYS_S.
+ */
+async function lrclib(path, signal) {
+    let waitedOut429 = false;
+    for (let attempt = 0; ; attempt++) {
+        let res;
+        try {
+            res = await fetch(`${API}${path}`, { signal, headers: { 'Lrclib-Client': CLIENT } });
+        } catch (err) {
+            if (signal?.aborted || attempt >= RETRY_DELAYS_S.length) throw err;
+            await sleep(RETRY_DELAYS_S[attempt], signal);
+            continue;
+        }
+        if (res.status === 429 && !waitedOut429) {
+            const wait = Number(res.headers.get('Retry-After')) || 5;
+            if (wait > MAX_RETRY_AFTER_S) return res;
+            waitedOut429 = true;
+            await sleep(wait, signal);
+            attempt--;                  // the Retry-After wait is not one of the 5xx retries
+            continue;
+        }
+        if (res.status < 500 || attempt >= RETRY_DELAYS_S.length) return res;
+        await sleep(RETRY_DELAYS_S[attempt], signal);
+    }
+}
+
+function sleep(seconds, signal) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, seconds * 1000);
+        signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
     });
-    return lrclib(path, signal, true);
 }
 
 function shape(rec) {

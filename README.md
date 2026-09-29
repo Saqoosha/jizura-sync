@@ -49,6 +49,27 @@ Start playing something on Spotify on any device (phone, desktop, speaker). The 
 - **Your own hosting** (GitHub Pages or any static host): serve `web/`, including the submodule, and register the page's exact `https://` URL as a Redirect URI. The URI is the page address without query or hash, and the setup screen shows it.
 - **A device without a keyboard** (a car's browser): `SPOTIFY_CLIENT_ID=<id> tools/deploy-cloudflare.sh` deploys `web/` to your own Cloudflare account with your Client ID filled in, so there is nothing to type. In Tesla's browser the keys in the help are tap buttons; `?tesla` shows them in any browser. Keep the deployment to your own devices.
 
+## macOS app
+
+On a Mac, the app follows the **Spotify or Music app on the same Mac** instead of the Spotify Web API: no Spotify developer app, no Client ID, no sign-in, and Apple Music works too. It reads the player over Apple Events (the Automation permission), so it cannot follow playback on another device.
+
+```bash
+tools/build-mac.sh                    # build/jizura-sync.app, ad-hoc signed for this Mac
+open build/jizura-sync.app
+```
+
+The first time it reads Spotify or Music, macOS asks whether jizura-sync may control that app; allow it. To change the answer later: System Settings → Privacy & Security → Automation. When both apps are open, it follows the one that is playing.
+
+To hand the app to another Mac, sign it with a Developer ID and notarize it, so Gatekeeper opens it without a warning:
+
+```bash
+SIGN_IDENTITY="Developer ID Application: <name> (<team>)" NOTARY_PROFILE=<profile> tools/build-mac.sh
+```
+
+`<profile>` is a keychain profile saved once with `xcrun notarytool store-credentials`. The result is `build/jizura-sync.zip`.
+
+Notarized builds are published on the [Releases](https://github.com/Saqoosha/jizura-sync/releases) page, and the app updates itself from there (**jizura-sync → Check for Updates…**, [Sparkle](https://sparkle-project.org)). `tools/release-mac.sh <version>` publishes one.
+
 ## Controls
 
 The bar at the bottom shows the cover art, the track, and play / pause, previous / next and seek on Spotify. Press `?` or the `?` button for the controls below.
@@ -87,7 +108,8 @@ The bar at the bottom shows the cover art, the track, and play / pause, previous
 This project is a personal experiment. It is not affiliated with, endorsed by, or supported by Spotify, Apple, LRCLIB or the JIZURA author. It is provided as is, without warranty (see [LICENSE](LICENSE)). Whoever runs it is responsible for how they use it.
 
 - **Spotify does not allow publishing an app like this.** Using the Web API makes you a Spotify developer, bound by the [Spotify Developer Terms](https://developer.spotify.com/terms) and [Developer Policy](https://developer.spotify.com/policy). Section III of the policy says: "Do not synchronize any sound recordings with any visual media, including any advertising, film, television program, slideshow, video, or similar content." Lyric motion timed to the playing track is that kind of synchronization. Whoever runs a copy creates their own Spotify app for it; the policy requires separate credentials for each app, so do not reuse another project's Client ID. That app can be used by at most 5 Spotify accounts in development mode, each registered on it, and those accounts share its Client ID.
-- **Apple Music does not allow it either,** which is why there is no Apple Music version. The Apple Developer Program License Agreement says of MusicKit: "MusicKit Content cannot be synchronized with any other content, unless otherwise permitted by Apple in the Documentation."
+- **Apple Music does not allow it either,** which is why the web page has no Apple Music version. The Apple Developer Program License Agreement says of MusicKit: "MusicKit Content cannot be synchronized with any other content, unless otherwise permitted by Apple in the Documentation."
+- **The macOS app uses neither API.** It reads the Spotify and Music apps on the same Mac over Apple Events, so it creates no Spotify developer app and does not use MusicKit. That does not license anything: the recordings are still Spotify's and Apple's to license, and the lyrics below are still unlicensed.
 - **The lyrics are not licensed.** Lyrics are copyrighted works of their writers and publishers. LRCLIB's lyrics are contributed by its users, and neither LRCLIB nor this project has cleared them with the rights holders. This project holds no rights to any lyrics; it fetches them at runtime and does not store or redistribute them.
 - **Do not host it as a service for others.** Keep a deployment to yourself and the accounts registered on your own Spotify app.
 

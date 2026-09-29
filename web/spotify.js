@@ -4,6 +4,8 @@
 // Everything is per browser: the client ID the user pasted, the tokens, and the PKCE verifier
 // live in this origin's storage and are sent nowhere but accounts.spotify.com / api.spotify.com.
 
+import { t } from './i18n.js';
+
 const ACCOUNTS = 'https://accounts.spotify.com';
 const API = 'https://api.spotify.com/v1';
 const SCOPES = 'user-read-playback-state user-modify-playback-state';
@@ -53,8 +55,8 @@ export const auth = {
         history.replaceState(null, '', auth.redirectUri() + location.hash);
         const pkce = store.get(PKCE_KEY, sessionStorage);
         store.del(PKCE_KEY, sessionStorage);
-        if (q.has('error')) throw new SpotifyError('auth', `Spotify sign-in was declined (${q.get('error')})`);
-        if (!pkce || q.get('state') !== pkce.state) throw new SpotifyError('auth', 'Spotify sign-in did not match this tab — try again');
+        if (q.has('error')) throw new SpotifyError('auth', t('Spotify sign-in was declined ({detail})', { detail: q.get('error') }));
+        if (!pkce || q.get('state') !== pkce.state) throw new SpotifyError('auth', t('Spotify sign-in did not match this tab — try again'));
         await tokenRequest({ grant_type: 'authorization_code', code: q.get('code'), redirect_uri: auth.redirectUri(), code_verifier: pkce.verifier });
         return true;
     },
@@ -75,7 +77,7 @@ async function tokenRequest(params) {
     if (!res.ok) {
         // 400 invalid_grant = the refresh token is dead (revoked, or the client ID changed): sign in again.
         if (res.status === 400) auth.disconnect();
-        throw new SpotifyError(res.status === 400 ? 'auth' : 'transient', `Spotify token request failed: ${body.error_description || body.error || res.status}`);
+        throw new SpotifyError(res.status === 400 ? 'auth' : 'transient', t('Spotify token request failed: {detail}', { detail: body.error_description || body.error || res.status }));
     }
     const prev = store.get(TOKENS_KEY) || {};
     store.set(TOKENS_KEY, {
@@ -86,10 +88,10 @@ async function tokenRequest(params) {
 }
 
 async function accessToken(force = false) {
-    const t = store.get(TOKENS_KEY);
-    if (!t?.refresh_token) throw new SpotifyError('auth', 'Not connected to Spotify');
-    if (!force && t.access_token && t.expires_at - Date.now() > 60_000) return t.access_token;
-    refreshing ||= tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refresh_token }).finally(() => { refreshing = null; });
+    const tokens = store.get(TOKENS_KEY);
+    if (!tokens?.refresh_token) throw new SpotifyError('auth', t('Not connected to Spotify'));
+    if (!force && tokens.access_token && tokens.expires_at - Date.now() > 60_000) return tokens.access_token;
+    refreshing ||= tokenRequest({ grant_type: 'refresh_token', refresh_token: tokens.refresh_token }).finally(() => { refreshing = null; });
     await refreshing;
     return store.get(TOKENS_KEY).access_token;
 }
@@ -101,20 +103,20 @@ async function api(method, path, retried = false) {
         res = await fetch(`${API}${path}`, { method, headers: { Authorization: `Bearer ${await accessToken()}` } });
     } catch (err) {
         if (err instanceof SpotifyError) throw err;
-        throw new SpotifyError('transient', `Spotify unreachable (${err.message})`);
+        throw new SpotifyError('transient', t('Spotify unreachable ({detail})', { detail: err.message }));
     }
     if (res.status === 401 && !retried) { await accessToken(true); return api(method, path, true); }
     if (res.ok) return res;
     const text = await res.text().catch(() => '');
     let message = text;
     try { message = JSON.parse(text).error?.message || text; } catch { /* plain text body */ }
-    if (res.status === 401) throw new SpotifyError('auth', `Spotify rejected the session: ${message}`);
+    if (res.status === 401) throw new SpotifyError('auth', t('Spotify rejected the session: {detail}', { detail: message }));
     // Development-mode apps answer 403 to every call from an account missing from the app's
     // User Management list; there is no point retrying that.
     if (res.status === 403 && /not registered/i.test(message)) {
-        throw new SpotifyError('not-registered', 'This Spotify account is not on the app’s User Management list');
+        throw new SpotifyError('not-registered', t('This Spotify account is not on the app’s User Management list'));
     }
-    if (res.status === 429) throw new SpotifyError('rate-limited', 'Spotify rate limit — backing off');
+    if (res.status === 429) throw new SpotifyError('rate-limited', t('Spotify rate limit — backing off'));
     if (res.status >= 500) throw new SpotifyError('transient', `Spotify ${res.status}`);
     throw new SpotifyError('command', `Spotify ${res.status}: ${message}`);
 }
@@ -216,7 +218,7 @@ export class SpotifyPlayer {
         if (res.status === 204) {                            // no active device
             this._track = null;
             this._playing = false;
-            this._onError(new SpotifyError('no-device', 'Nothing is playing on Spotify'));
+            this._onError(new SpotifyError('no-device', t('Nothing is playing on Spotify')));
             this._schedule(POLL_MS * 3);
             return;
         }
