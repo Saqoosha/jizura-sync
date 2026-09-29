@@ -7,6 +7,7 @@
 
 import { auth, SpotifyPlayer } from './spotify.js';
 import { fetchLyrics, lrcToJizura } from './lyrics.js';
+import { hasNative, NativePlayer } from './native.js';
 
 const J = window.J;
 
@@ -137,6 +138,11 @@ function sizeCanvas() {
     canvas.style.height = `${cssH}px`;
 }
 
+// What the canvas shows. The renderer depends only on the plan, the time and the loaded fonts, so
+// a frame that would repeat it (paused) is skipped; a font arriving redraws.
+let drawn = null;
+document.fonts.addEventListener('loadingdone', () => { drawn = null; });
+
 function tick() {
     requestAnimationFrame(tick);
     const state = player?.getState();
@@ -144,9 +150,11 @@ function tick() {
     if (state) lastError = null;
     updateBar(state);
     if (!plan || !state || state.trackId !== trackId) return;
-    const t = Math.max(0, (state.positionMs + offsetMs) / 1000);
+    const t = Math.min(Math.max(0, (state.positionMs + offsetMs) / 1000), plan.duration - 1e-3);
+    if (drawn && drawn.plan === plan && drawn.t === t && drawn.w === canvas.width && drawn.h === canvas.height) return;
+    drawn = { plan, t, w: canvas.width, h: canvas.height };
     const t0 = performance.now();
-    renderer.frame(ctx, plan, Math.min(t, plan.duration - 1e-3), { scale: canvas.width / plan.W, fast: slow });
+    renderer.frame(ctx, plan, t, { scale: canvas.width / plan.W, fast: slow });
     // Same hysteresis as JIZURA's editor: drop blur filters while frames run long.
     const dt = performance.now() - t0;
     slow = dt > 30 ? true : dt < 14 ? false : slow;
@@ -411,6 +419,14 @@ async function boot() {
     wake();
     const q = new URLSearchParams(location.search);
     if (q.has('mock')) { player = new MockPlayer(q.get('mock'), Number(q.get('t')) || 0); showBar(); return; }
+    // Inside the macOS app: the Spotify / Music app on this Mac, no sign-in.
+    if (hasNative()) {
+        player = new NativePlayer();
+        player.onError((err) => showError(err.message));
+        player.start();
+        showBar();
+        return;
+    }
     try { await auth.handleRedirect(); } catch (err) { showGate(err.message); return; }
     if (!auth.clientId()) { showGate('Paste the Client ID of your own Spotify app to start.'); return; }
     if (!auth.isConnected()) { showGate("Lyric motion for what's playing on your Spotify"); return; }

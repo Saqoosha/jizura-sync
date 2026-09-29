@@ -49,6 +49,25 @@ Client ID は公開の識別子で、秘密ではない。認証は PKCE なの�
 - **自分でホストする**（GitHub Pages など静的ホスティング）: `web/` を submodule ごと置き、そのページの `https://` の URL を Redirect URI に登録する。URI はクエリとハッシュを除いたページのアドレスで、設定画面に表示される
 - **キーボードのない端末**（車のブラウザ）: `SPOTIFY_CLIENT_ID=<id> tools/deploy-cloudflare.sh` で `web/` を自分の Cloudflare アカウントにデプロイする。Client ID が入った状態になるので、何も入力しなくていい。Tesla のブラウザではヘルプのキーがタップできるボタンになる。`?tesla` を付けるとどのブラウザでも同じ表示になる。デプロイ先は自分の端末だけで使う
 
+## macOS アプリ
+
+Mac では、Spotify Web API の代わりに**同じ Mac の Spotify アプリか Music アプリ**を追う。Spotify の開発者アプリも Client ID もサインインも要らず、Apple Music でも動く。プレイヤーは AppleScript で読むので、他のデバイスでの再生は追えない。
+
+```bash
+tools/build-mac.sh                    # build/jizura-sync.app（この Mac 用に ad-hoc 署名）
+open build/jizura-sync.app
+```
+
+初めて Spotify か Music を読むとき、macOS が jizura-sync にそのアプリの操作を許可するか聞いてくる。許可する。あとで変えるならシステム設定 → プライバシーとセキュリティ → オートメーション。両方のアプリが開いているときは、再生中のほうを追う。
+
+他の Mac に渡すなら、Developer ID で署名して公証（notarize）する。そうすれば Gatekeeper の警告なしで開ける。
+
+```bash
+SIGN_IDENTITY="Developer ID Application: <name> (<team>)" NOTARY_PROFILE=<profile> tools/build-mac.sh
+```
+
+`<profile>` は `xcrun notarytool store-credentials` で一度保存したキーチェーンのプロファイル。出力は `build/jizura-sync.zip`。
+
 ## 操作
 
 画面下のバーに、ジャケット・曲名と、Spotify の再生 / 一時停止・前へ / 次へ・シークがある。`?` キーかバーの `?` ボタンで、下の操作一覧が開く。
@@ -87,7 +106,8 @@ Client ID は公開の識別子で、秘密ではない。認証は PKCE なの�
 このプロジェクトは個人の実験。Spotify・Apple・LRCLIB・JIZURA の作者とは関係がなく、承認も支援も受けていない。無保証で提供する（[LICENSE](LICENSE) を参照）。どう使うかは、動かす人の責任。
 
 - **Spotify は、このような app の公開を認めていない。** Web API を使うと、その人は Spotify の開発者になり、[Spotify Developer Terms](https://developer.spotify.com/terms) と [Developer Policy](https://developer.spotify.com/policy) に従うことになる。Policy の III 章には「Do not synchronize any sound recordings with any visual media, including any advertising, film, television program, slideshow, video, or similar content.」（音源を、広告・映画・テレビ番組・スライドショー・動画などの映像と同期させてはならない）とある。再生中の曲に合わせた歌詞モーションは、この同期にあたる。動かす人は、自分用の Spotify app を作る。規約は app ごとに別の資格情報を使うよう求めているので、ほかのプロジェクトの Client ID を流用してはいけない。開発モードのその app を使えるのは、app に登録した 5 アカウントまでで、その人たちは同じ Client ID を使う
-- **Apple Music も認めていない。** だから Apple Music 版は無い。Apple Developer Program License Agreement の MusicKit の条項に「MusicKit Content cannot be synchronized with any other content, unless otherwise permitted by Apple in the Documentation.」（Apple が文書で許可した場合を除き、MusicKit のコンテンツを他のコンテンツと同期させてはならない）とある
+- **Apple Music も認めていない。** だから Web 版に Apple Music 版は無い。Apple Developer Program License Agreement の MusicKit の条項に「MusicKit Content cannot be synchronized with any other content, unless otherwise permitted by Apple in the Documentation.」（Apple が文書で許可した場合を除き、MusicKit のコンテンツを他のコンテンツと同期させてはならない）とある
+- **macOS アプリはどちらの API も使わない。** 同じ Mac の Spotify アプリと Music アプリを AppleScript で読むので、Spotify の開発者アプリも MusicKit のコンテンツも作らない。ただし、それで何かの許諾が得られるわけではない。音源の権利は変わらず Spotify と Apple の側にあり、次の歌詞も許諾を得ていないまま。
 - **歌詞は許諾を得ていない。** 歌詞は作詞者と音楽出版社の著作物。LRCLIB の歌詞は利用者が投稿したもので、LRCLIB もこのプロジェクトも権利者の許諾を得ていない。このプロジェクトは歌詞の権利を一切持たない。歌詞は実行時に取得するだけで、保存も再配布もしない
 - **他人向けのサービスとしてホストしないこと。** デプロイは、自分と、自分の Spotify app に登録したアカウントだけで使う
 
