@@ -52,6 +52,8 @@ xcrun actool "$ROOT/mac/AppIcon.icon" --compile "$APP/Contents/Resources" \
     --app-icon AppIcon --include-all-app-icons --enable-on-demand-resources NO \
     --development-region en --target-device mac --platform macosx --minimum-deployment-target 14.0 \
     --output-partial-info-plist "$OUT/obj/actool.plist" --output-format human-readable-text --errors --warnings
+# actool exits 0 even when it fails.
+[[ -f "$APP/Contents/Resources/Assets.car" && -f "$APP/Contents/Resources/AppIcon.icns" ]] || { echo "actool failed" >&2; exit 1; }
 
 # Same selection as the Cloudflare deploy: the page loads only JIZURA's src/*.js.
 rsync -a --exclude vendor --exclude .DS_Store "$ROOT/web/" "$APP/Contents/Resources/web/"
