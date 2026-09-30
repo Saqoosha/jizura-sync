@@ -67,7 +67,7 @@ tools/build-mac.sh                    # build/jizura-sync.app（この Mac 用�
 open build/jizura-sync.app
 ```
 
-Xcode のコマンドラインツールが要る。Xcode プロジェクトは無い。最初のビルドで Sparkle を `build/` にダウンロードする。`--recursive` を付けずに clone したときは `git submodule update --init`。
+Xcode 26 以降が要る（アイコンを作る `actool` のため）。Xcode プロジェクトは無い。最初のビルドで Sparkle を `build/` にダウンロードする。`--recursive` を付けずに clone したときは `git submodule update --init`。
 
 ### 仕組み
 

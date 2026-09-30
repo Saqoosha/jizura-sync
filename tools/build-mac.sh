@@ -46,14 +46,14 @@ cp -R "$ROOT/mac/en.lproj" "$ROOT/mac/ja.lproj" "$APP/Contents/Resources/"
 # Sparkle compares CFBundleVersion: the commit count only ever grows on main.
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(git -C "$ROOT" rev-list --count HEAD)" "$APP/Contents/Info.plist"
 
-# App icon: every size iconutil expects, scaled from the 1024 px master.
-ICONSET="$OUT/obj/AppIcon.iconset"
-rm -rf "$ICONSET" && mkdir -p "$ICONSET"
-for size in 16 32 128 256 512; do
-    sips -z $size $size "$ROOT/mac/icon.png" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
-    sips -z $((size * 2)) $((size * 2)) "$ROOT/mac/icon.png" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
-done
-iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+# App icon: macOS 26 puts an icon without Assets.car inside a grey squircle, so compile the
+# Icon Composer bundle. actool also writes AppIcon.icns, which macOS 14 and 15 use.
+xcrun actool "$ROOT/mac/AppIcon.icon" --compile "$APP/Contents/Resources" \
+    --app-icon AppIcon --include-all-app-icons --enable-on-demand-resources NO \
+    --development-region en --target-device mac --platform macosx --minimum-deployment-target 14.0 \
+    --output-partial-info-plist "$OUT/obj/actool.plist" --output-format human-readable-text --errors --warnings
+# actool exits 0 even when it fails.
+[[ -f "$APP/Contents/Resources/Assets.car" && -f "$APP/Contents/Resources/AppIcon.icns" ]] || { echo "actool failed" >&2; exit 1; }
 
 # Same selection as the Cloudflare deploy: the page loads only JIZURA's src/*.js.
 rsync -a --exclude vendor --exclude .DS_Store "$ROOT/web/" "$APP/Contents/Resources/web/"

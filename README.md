@@ -67,7 +67,7 @@ tools/build-mac.sh                    # build/jizura-sync.app, ad-hoc signed for
 open build/jizura-sync.app
 ```
 
-It needs the Xcode command line tools; there is no Xcode project. The first build downloads Sparkle into `build/`. Already cloned without `--recursive`? Run `git submodule update --init`.
+It needs Xcode 26 or later (for `actool`, which compiles the icon); there is no Xcode project. The first build downloads Sparkle into `build/`. Already cloned without `--recursive`? Run `git submodule update --init`.
 
 ### How it works
 
